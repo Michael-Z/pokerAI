@@ -161,6 +161,7 @@ def readABSfile(filename):
                     
                     if line[:5]=="Stage":
                         stage = src + "-" + line[(line.find("#")+1):line.find(":")]
+                        assert len(stage)<=22
                        
                     elif line[:3]=="***":
                         nar = j - lastNewRoundLine
@@ -442,6 +443,7 @@ def readFTPfile(filename):
                     
                     if line[:20]=="Full Tilt Poker Game":
                         stage = src + "-" + line[(line.find("#")+1):line.find(":")]
+                        assert len(stage)<=22
                         
                     elif line[:3]=="***":
                         for key in roundInvestments:
@@ -749,6 +751,7 @@ def readONGfile(filename):
                     
                     if line[:22]=="***** History for hand":
                         stage = src + "-" + line[24:(24 + line[24:].find("*") - 1)]
+                        assert len(stage)<=22
                         
                     elif line[:3]=="---" and len(line)>3:
                         nar = j - lastNewRoundLine
@@ -1027,6 +1030,7 @@ def readPSfile(filename):
                     
                     if line[:15]=="PokerStars Game":
                         stage = src + "-" + line[(line.find("#")+1):line.find(":")]
+                        assert len(stage)<=22
                                                 
                     elif line[:3]=="***":
                         nar = j - lastNewRoundLine
@@ -1319,6 +1323,7 @@ def readPTYfile(filename):
                 
                 if line[:6]=="Game #":
                     stage = src + "-" + line[(line.find("#")+1):line.find(" starts")]
+                    assert len(stage)<=22
                     
                 elif line[:2]=="**" and line[:5]!="*****":
                     nar = j - lastNewRoundLine
@@ -1488,10 +1493,13 @@ def readFile(filename):
     return full
         
 ####################### READ ALL FILES ########################################
+# restart the data folder
+if os.path.exists('data'):
+    shutil.rmtree('data')
+
 # set up directories
 for tableType in ['Small','Database']:
-    if not os.path.exists('data/{}CSVs'.format(tableType)):
-        os.makedirs('data/{}CSVs'.format(tableType))
+    os.makedirs('data/{}CSVs'.format(tableType))
 
 # get all files, not including IPN because they're stupid and also dumb
 folders = ["rawdata/"+fdr for fdr in os.listdir('rawdata')]
@@ -1523,8 +1531,6 @@ def worker(tup):
 
 # write all files
 def getData(nFiles, mp=True, useExamples=False):
-    startTime = datetime.datetime.now()
-    
     # multi-threaded or single-threaded writing, depending on flag
     if mp:
         p = multiprocessing.Pool(8)
@@ -1545,6 +1551,7 @@ def getData(nFiles, mp=True, useExamples=False):
 # if testing, get example files; if not, do all files
 testing = False
 mp = True
+startTime = datetime.datetime.now()
 
 if testing:
     srcs = ['abs','ftp','ong','ps','pty']
