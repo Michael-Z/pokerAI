@@ -429,10 +429,8 @@ for fdr in folders:
 # list of possible actions, for reference in multiple columns
 actionsWB = ['deadblind','blind','fold','check','call','bet','raise']
 actions = actionsWB[2:]
-
 os.chdir('../data/columns')
 #os.chdir('testdata')
-
 # player's last action
 with open('Player.txt') as playerF, open('Action.txt') as actionF, \
         open('LastAction.txt','ab') as outF:
@@ -450,7 +448,6 @@ with open('Player.txt') as playerF, open('Action.txt') as actionF, \
             pla = []
     outF.write('\n'.join(pla))
     pla = None
-
 # players' actions by round as percentages
 with open('Player.txt') as playerF, open('Action.txt') as actionF, \
         open('Round.txt') as roundF:
@@ -471,7 +468,6 @@ with open('Player.txt') as playerF, open('Action.txt') as actionF, \
                 playersActionsByRound[p][a] = {r:1., 'All':1.}
         else:
             playersActionsByRound[p] = {a:{r:1., 'All':1.}}
-
 with open('Player.txt') as playerF, open('Action.txt') as actionF:
     for i,(p,a) in enumerate(izip(playerF,actionF)):
         p,a = (p.strip(), a.strip())
@@ -509,7 +505,6 @@ with open('Player.txt') as playerF, open('Action.txt') as actionF:
             f.write('\n'.join(toStrings(colsToBeWritten[a][r])))
             f.close()
     colsToBeWritten,playerActionsByRound = [None,None]
-
 # VPIP (voluntarily put $ in pot)
 # preflop raise %
 with open('Player.txt') as playerF, open('Round.txt') as roundF, \
@@ -545,7 +540,6 @@ with open('Player.txt') as playerF, open('VPIP.txt','ab') as vpipF, \
     vpipF.write('\n'.join(toStrings(vpip)))
     pfrF.write('\n'.join(toStrings(pfr)))
     vpip,pfr,playersCalls,playersRaises,playersPreflopOps = [None,None,None,None,None]
-
 # net at table
 with open('Player.txt') as playerF, open('Table.txt') as tableF, \
         open('CurrentStack.txt') as csF, open('StartStack.txt') as ssF, \
@@ -572,7 +566,6 @@ with open('Player.txt') as playerF, open('Table.txt') as tableF, \
             nat = []
     outF.write('\n'.join(toStrings(nat)))
     nat,playerTableStartStacks = [None,None]
-
 # sd of VPIP for each player
 with open('Player.txt') as playerF, open('VPIP.txt') as vpipF:
     sdv = []
@@ -593,7 +586,6 @@ with open('Player.txt') as playerF, open('sdVPIP.txt','ab') as outF:
             sdv = []
     outF.write('\n'.join(toStrings(sdv)))
     sdv,playerVPIP = [None,None]
-
 # 3-bet %
 with open('Player.txt') as playerF, open('Round.txt') as roundF, \
         open('Action.txt') as actionF:
@@ -646,7 +638,6 @@ with open('Player.txt') as playerF, open('SeeShowdownPct.txt','ab') as outF:
             ssPct = []
     outF.write('\n'.join(toStrings(ssPct)))
     ssPct,playerGameSeesSD = [None,None]
-
 # average commitment folded
 with open('Player.txt') as playerF, open('Action.txt') as actionF, \
         open('InvestedThisGame.txt') as investF, open('BigBlind.txt') as bbF:
@@ -686,14 +677,12 @@ def getAF(r):
         af = None
         
 getAF('All')
-
 # aggression factor on flop
 getAF('Flop')
 # aggression factor on turn
 getAF('Turn')
 # aggression factor on river
 getAF('River')
-
 # win % when see flop
 with open('Player.txt') as playerF, open('GameNum.txt') as gameF, \
         open('Round.txt') as roundF, open('Winnings.txt') as winF:
@@ -718,7 +707,6 @@ with open('Player.txt') as playerF, open('WinWhenSeeFlopPct.txt','ab') as outF:
             wf = []
     outF.write('\n'.join(toStrings(wf)))
     wf,playerFlopWins,playerFlopOpps = [None,None,None]
-
 # win without showdown % (wins without showdown / total wins)
 with open('Player.txt') as playerF, open('GameNum.txt') as gameF, \
         open('HoleCard1.txt') as cardF, open('Winnings.txt') as winF:
@@ -743,7 +731,6 @@ with open('Player.txt') as playerF, open('WinWithoutShowdownPct.txt','ab') as ou
             wws = []
     outF.write('\n'.join(toStrings(wws)))
     wws,playerWinsWSD,playerWins = [None,None,None]
-
 # win % at showdown
 with open('Player.txt') as playerF, open('GameNum.txt') as gameF, \
         open('HoleCard1.txt') as cardF, open('Winnings.txt') as winF:
@@ -769,7 +756,6 @@ with open('Player.txt') as playerF, open('WinAtShowdownPct.txt','ab') as outF:
             ws = []
     outF.write('\n'.join(toStrings(ws)))
     ws,playerWinsAtSD,playerShowdowns = [None,None,None]
-
 # continuation bet %
 with open('Player.txt') as playerF, open('GameNum.txt') as gameF, \
         open('Round.txt') as roundF, open('Action.txt') as actionF:
@@ -804,7 +790,6 @@ with open('Player.txt') as playerF, open('ContBetPct.txt','ab') as outF:
             cb = []
     outF.write('\n'.join(toStrings(cb)))
     cb,playerContBets,playerContBetOpps = [None,None,None]
-
 # bet river %
 with open('Player.txt') as playerF, open('Round.txt') as roundF, \
         open('Action.txt') as actionF:
@@ -904,7 +889,6 @@ with open('Player.txt') as playerF,open('FoldToCBet.txt','ab') as outFoldF, \
     outCallF.write('\n'.join(toStrings(ccb)))
     outRaiseF.write('\n'.join(toStrings(rcb)))
     fcb,ccb,rcb = [None,None,None]
-
 # fold to, call, raise flop bet %
 with open('Player.txt') as playerF, open('Round.txt') as roundF, \
         open('GameNum.txt') as gameF, open('Action.txt') as actionF:
@@ -946,7 +930,6 @@ with open('Player.txt') as playerF, open('FoldToFlopBet.txt','ab') as outFoldF, 
     outCallF.write('\n'.join(toStrings(cfb)))
     outRaiseF.write('\n'.join(toStrings(rfb)))
     ffb,cfb,rfb = [None,None,None]
-
 # net from last hand, rel start stack
 with open('Player.txt') as playerF, open('GameNum.txt') as gameF, \
         open('StartStack.txt') as stackF, open('NetFromLastHand.txt','ab') as outF:
@@ -965,7 +948,6 @@ with open('Player.txt') as playerF, open('GameNum.txt') as gameF, \
             nets = []
     outF.write('\n'.join(toStrings(nets)))
     nets,playerLastStacks = [None,None]
-
 # participated in last hand
 with open('Player.txt') as playerF, open('GameNum.txt') as gameF, \
         open('Action.txt') as actionF, open('ParticipatedInLastHand.txt') as outF:
@@ -993,12 +975,10 @@ with open('Player.txt') as playerF, open('GameNum.txt') as gameF, \
             plh = []
         outF.write('\n'.join(toStrings(plh)))
         plh,PlayerPInLastHand,playerPInCurrentHand = [None,None,None]
-
 '''
 '''
 ############################ MERGE COLUMNS TO CSV #############################
 os.system('paste -d"," *.txt >> features.csv')
-
 ############################ BREAK UP FEATURE SET INTO 8 FILES ################
 with open("features.csv") as f:
     rounds = ['Preflop','Flop','Turn','River']
