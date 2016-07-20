@@ -1540,7 +1540,7 @@ def getData(nFiles, mp=True, useExamples=False):
         else:
             map(worker, enumerate(allFiles[:nFiles]))
     
-    print "Current runtime:", datetime.datetime.now() - startTime
+    print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
 testing = False
@@ -1675,8 +1675,7 @@ importQuery = """LOAD DATA LOCAL INFILE '{}'
                 IGNORE 1 LINES
                 ({});"""
 
-# games, then boards, then actions
-'''
+# run queries: games, then boards, then actions
 for f in sorted(os.listdir(os.getcwd()))[::-1]:
     table = f[:-4]
     try:
@@ -1684,4 +1683,5 @@ for f in sorted(os.listdir(os.getcwd()))[::-1]:
         db.commit()
     except Exception:
         db.rollback()
-'''
+        
+print "Final runtime of entire fileReaders:", datetime.datetime.now() - startTime
