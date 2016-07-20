@@ -1,5 +1,9 @@
+#"""
+import sys
 import os
+import shutil
 import gc
+import multiprocessing
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -7,6 +11,7 @@ from bisect import bisect_left
 import csv
 from itertools import izip, product, combinations
 
+'''
 ############################ CREATE TEST FILES ################################
 # write sample txt files
 for filename in os.listdir('data/columns'):
@@ -18,6 +23,7 @@ for filename in os.listdir('data/columns'):
                 break
             col.append(d)
         fOut.write(''.join(col))
+'''
 
 ############################### TABLE FEATURES ################################
 # quick convert of numeric list to list of strings
@@ -30,7 +36,6 @@ def toStrings(l):
 # CREATE FEATURE SET
 tableFiles = ['data/tables/{}'.format(f) for f in os.listdir('data/tables')]
 columnFiles = ["data/columns/"+f for f in os.listdir('data/columns')]
-testTableFiles = tableFiles[:1]
 testColumnFiles = ['testdata/{}'.format(f) for f in os.listdir('testdata')]
 
 actions = ['none','deadblind','blind','fold','check','call','bet','raise']
@@ -43,13 +48,12 @@ def basicAction(a):
     else:
         return a
 
-startTime = datetime.now()
-for ii,filename in enumerate(tableFiles[:2]):
-    #### PREP ####
+def worker(tup):
+    ii,filename,w = tup
     
+    #### PREP ####
     # read in data
     poker = pd.read_csv(filename)
-    print "READ IN POKER:", datetime.now() - startTime
     
     # helper columns
     poker['SeatRelDealer'] = np.where(poker.SeatNum > poker.Dealer,
@@ -57,6 +61,7 @@ for ii,filename in enumerate(tableFiles[:2]):
                                         poker.Dealer - poker.SeatNum)
     poker['BasicAction'] = poker.Action.apply(basicAction)
     poker = poker.join(pd.get_dummies(poker.Action).astype(int))
+    poker['deadblind'] = (poker.Action=='deadblind').astype(int)
     
     # start feature set
     pokerWOB = pd.DataFrame(poker.ix[~((poker.Action=='blind') | (poker.Action=='deadblind'))])
@@ -74,7 +79,6 @@ for ii,filename in enumerate(tableFiles[:2]):
     featureSet['FacingBet'] = (pokerWOB.CurrentBet > pokerWOB.InvestedThisRound).astype(int)
 
     #### GAME STATE FEATURES ####
-
     # amount to call
     featureSet['AmountToCall'] = pokerWOB.CurrentBet - pokerWOB.InvestedThisRound
 
@@ -331,7 +335,7 @@ for ii,filename in enumerate(tableFiles[:2]):
     gc.collect()
     
     # aggressor position, aggressor stack, aggressor in position vs me
-    agg = (poker.bet | poker['raise']).astype(bool)
+    agg = (poker.deadblind | poker.blind | poker.bet | poker['raise']).astype(bool)
     featureSet['AggressorPos'] = (poker.SeatRelDealer*agg).replace(to_replace=0, method='ffill').ix[pokerWOB.index]
     featureSet['AggInPosVsMe'] = featureSet.AggressorPos < pokerWOB.SeatRelDealer
     featureSet['AggStack'] = (poker.CurrentStack*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
@@ -386,20 +390,39 @@ for ii,filename in enumerate(tableFiles[:2]):
     
     #### WRITE TABLE TO COLUMN FILES ####
     # one folder per column, one file per writing
-    print "FEATURE SET COMPLETE", datetime.now() - startTime
-    if ii==0:
-        for c in featureSet.columns:
+    if w:
+        for i,c in enumerate(featureSet.columns):
+            with open('features/{}/{}.txt'.format(c,ii),'w') as outF:
+                outF.write('\n'.join(toStrings(featureSet[c])))
+    else:
+        return featureSet.columns
+    
+def getAllTableFeatures(nFiles):
+    startTime = datetime.now()
+    
+    if len(os.listdir('features'))==0:
+        cols = worker((0,tableFiles[0],False))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+        for c in cols:                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
             os.makedirs('features/{}'.format(c))
-    for i,c in enumerate(featureSet.columns):
-        with open('features/{}/{}.txt'.format(c,ii),'w') as outF:
-            outF.write('\n'.join(toStrings(featureSet[c])))
-    print "FEATURES WRITTEN TO TXT", datetime.now() - startTime
     
-#### CONCAT FILES IN FEATURE FOLDERS, PUT RESULT IN COLUMNS FOLDER; DELETE ####
+    p = multiprocessing.Pool(8)
+    p.map_async(worker, zip(range(nFiles),tableFiles[:nFiles],[True]*nFiles))
+    p.close()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+    p.join()
+    
+    print datetime.now() - startTime
+    
+getAllTableFeatures(16)
+    
+### CONCAT FILES IN FEATURE FOLDERS, PUT RESULT IN MAIN DIR; DELETE FOLDER ###
+'''
 os.chdir('features')
-
-# TODO: use bash to concatenate all files in each folder
-    
+folders = os.listdir(os.getcwd())
+for fdr in folders:
+    os.system('cat {0}/*.txt > {0}.txt'.format(fdr))
+for fdr in folders:
+    shutil.rmtree(fdr)
+'''
 
 ############################ COLUMN FEATURES ##############################
 '''
@@ -1034,3 +1057,4 @@ with open("features.csv") as f:
             dictWriter.writerows(rows)
     data = [[] for i in xrange(8)]
 '''
+#"""
