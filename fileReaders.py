@@ -8,6 +8,7 @@ from bisect import bisect_left
 import codecs
 import multiprocessing
 import MySQLdb
+import pandas as pd
 
 locale.setlocale(locale.LC_NUMERIC, 'en_US.utf8')
 
@@ -276,7 +277,8 @@ def readABSfile(filename):
                                   'NumPlayers': numPlayers,
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                                  'Winnings': winnings[maybePlayerName]
+                                  'Winnings': winnings[maybePlayerName],
+                                  'Filename': filename
                                   }
                         try:
                             for ii in [1,2]:
@@ -521,7 +523,6 @@ def readFTPfile(filename):
                             if cb<amt:
                                 cb = amt
                         elif fullA=='is sitting out':
-                            numPlayers -= 1
                             npl -= 1
                             seats.pop(maybePlayerName)
                             continue
@@ -553,7 +554,8 @@ def readFTPfile(filename):
                                   'NumPlayers': numPlayers,
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                                  'Winnings': winnings[maybePlayerName]
+                                  'Winnings': winnings[maybePlayerName],
+                                  'Filename': filename
                                   }
                         try:
                             for ii in [1,2]:
@@ -857,7 +859,8 @@ def readONGfile(filename):
                                   'NumPlayers': numPlayers,
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                                  'Winnings': winnings[maybePlayerName]
+                                  'Winnings': winnings[maybePlayerName],
+                                  'Filename': filename
                                   }
                         try:
                             for ii in [1,2]:
@@ -1107,7 +1110,6 @@ def readPSfile(filename):
                             if cb<amt:
                                 cb = amt
                         elif fullA=='is sitting out':
-                            numPlayers -= 1
                             npl -= 1
                             seats.pop(maybePlayerName)
                             continue
@@ -1139,7 +1141,8 @@ def readPSfile(filename):
                                   'NumPlayers': numPlayers,
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                                  'Winnings': winnings[maybePlayerName]
+                                  'Winnings': winnings[maybePlayerName],
+                                  'Filename': filename
                                   }
                         try:
                             for ii in [1,2]:
@@ -1408,7 +1411,6 @@ def readPTYfile(filename):
                         if cb<amt:
                             cb = amt
                     elif fullA=='is sitting out':
-                        numPlayers -= 1
                         npl -= 1
                         seats.pop(maybePlayerName)
                         continue
@@ -1440,8 +1442,9 @@ def readPTYfile(filename):
                               'NumPlayers': numPlayers,
                               'LenBoard': lenBoard,
                               'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                              'Winnings': winnings[maybePlayerName]
-                             }
+                              'Winnings': winnings[maybePlayerName],
+                              'Filename': filename
+                              }
                     try:
                         for ii in [1,2]:
                             c = holeCards[maybePlayerName][ii-1]
@@ -1468,7 +1471,8 @@ def readPTYfile(filename):
 keys = ['GameNum','RoundActionNum','Date','Time','SeatNum','Round','Player','StartStack',
         'CurrentStack','Action','Amount','AllIn','CurrentBet','CurrentPot','InvestedThisRound',
         'NumPlayersLeft','SmallBlind','BigBlind','TableName','Dealer','NumPlayers','Winnings',
-        'LenBoard','HoleCard1','HoleCard2','Board1','Board2','Board3','Board4','Board5']
+        'LenBoard','HoleCard1','HoleCard2','Board1','Board2','Board3','Board4','Board5',
+        'Filename']
     
 def readFileToDict(filename):
     # get dataframe from one of the source-specific functions
@@ -1513,25 +1517,38 @@ def worker(tup):
         with open(writeTo, 'ab') as outputFile:
             outputFile.write('\n'.join([str(c) for c in df[col]]) + "\n")
                     
-def getData(nFiles):
+def getData(nFiles, mp=True):
     startTime = datetime.datetime.now()
         
     # multi-threaded CSV and txt writing
-    p = multiprocessing.Pool(8)
-    p.map_async(worker,enumerate(allFiles[:nFiles]))
-    p.close()
-    p.join()
+    if mp:
+        p = multiprocessing.Pool(8)
+        p.map_async(worker,enumerate(examples[:nFiles]))
+        p.close()
+        p.join()
+    else:
+        map(worker, enumerate(examples[:nFiles]))
     
     print "Current runtime:", datetime.datetime.now() - startTime
 
-#getData(len(allFiles))
-getData(100)
+import itertools
+import random
+srcs = ['abs','ftp','ong','ps','pty']
+stks = ['0.5','0.25','1','2','4','6','10']
+examples = []
+for sr,st in itertools.product(srcs,stks):
+    allMatches = [f for f in allFiles if f.find("/"+sr)>=0 and f.find("/"+st+"/")>=0]
+    if allMatches:
+        examples.append(random.choice(allMatches))
 
+#getData(len(allFiles))
+
+getData(len(examples), mp=False)
 
 ####################### DATA FORMATTING 2: THE SQL ############################
 # txt to CSVs, one per table in database
 gameFields = ['GameNum','Date','Time','SmallBlind','BigBlind','TableName',
-              'Dealer','NumPlayers']
+              'Dealer','NumPlayers','Filename']
 actionFields = ['GameNum','Player','Action','SeatNum','Round','RoundActionNum',
                 'StartStack','CurrentStack','Amount','CurrentBet','CurrentPot',
                 'InvestedThisRound','NumPlayersLeft','Winnings','HoleCard1','HoleCard2']
@@ -1566,76 +1583,82 @@ for k,v in tableCols.iteritems():
 with open('../../pwd.txt') as f:
     pwd = f.read().strip()
 
+# debugging
+test = pd.read_csv('games.csv')
+vc = test.GameNum.value_counts()
+print test.ix[test.GameNum==vc.index[3]]
+
+
 # connect to DB
-db = MySQLdb.connect(host='localhost',port=3307,user='ntaylorwss',passwd=pwd,
-                     db='poker')
-cursor = db.cursor()
-
-# queries to create tables
-createBoardsQuery = """create table boards
-                    ( GameNum varchar(22),
-                      Round varchar(7),
-                      Board1 tinyint(2),
-                      Board2 tinyint(2),
-                      Board3 tinyint(2),
-                      Board4 tinyint(2),
-                      Board5 tinyint(2),
-                      BoardID int NOT NULL,
-                      PRIMARY KEY (BoardID)
-                    );"""
-
-createActionsQuery = """create table actions 
-                    ( GameNum varchar(22),
-                      Player varchar(22),
-                      Action varchar(10),
-                      SeatNum tinyint(2),
-                      Round varchar(7),
-                      RoundActionNum tinyint(2),
-                      Amount decimal(8,2),
-                      StartStack decimal(8,2),
-                      CurrentStack decimal(8,2),
-                      CurrentBet decimal(8,2),
-                      CurrentPot decimal(8,2),
-                      InvestedThisRound decimal(8,2),
-                      NumPlayersLeft tinyint(2),
-                      Winnings decimal(8,2),
-                      HoleCard1 tinyint(2),
-                      HoleCard2 tinyint(2),
-                      ActionID int NOT NULL,
-                      PRIMARY KEY (ActionID),
-                      FOREIGN KEY (GameNum) REFERENCES games (GameNum)
-                    );"""
-                    
-createGamesQuery = """create table games 
-                    ( GameNum varchar(22),
-                      Date date,
-                      Time time,
-                      SmallBlind decimal(2,2),
-                      BigBlind decimal(2,2),
-                      TableName varchar(22),
-                      Dealer tinyint(2),
-                      NumPlayers tinyint(2),
-                      PRIMARY KEY (GameNum)
-                    );"""
-
-for q in [createGamesQuery,createBoardsQuery,createActionsQuery]: cursor.execute(q)
-
-# query to add CSV data to tables
-importQuery = """LOAD DATA LOCAL INFILE '{}'
-                INTO TABLE {}
-                FIELDS TERMINATED BY ','
-                OPTIONALLY ENCLOSED BY '"'
-                LINES TERMINATED BY '\\n'
-                IGNORE 1 LINES
-                ({});"""
-
-# games, then boards, then actions
-'''
-for f in sorted(os.listdir(os.getcwd()))[::-1]:
-    table = f[:-4]
-    try:
-        cursor.execute(importQuery.format(f, table, ','.join(tableCols[table])))
-        db.commit()
-    except Exception:
-        db.rollback()
-'''
+#db = MySQLdb.connect(host='localhost',port=3307,user='ntaylorwss',passwd=pwd,
+#                     db='poker')
+#cursor = db.cursor()
+#
+## queries to create tables
+#createBoardsQuery = """create table boards
+#                    ( GameNum varchar(22),
+#                      Round varchar(7),
+#                      Board1 tinyint(2),
+#                      Board2 tinyint(2),
+#                      Board3 tinyint(2),
+#                      Board4 tinyint(2),
+#                      Board5 tinyint(2),
+#                      BoardID int NOT NULL,
+#                      PRIMARY KEY (BoardID)
+#                    );"""
+#
+#createActionsQuery = """create table actions 
+#                    ( GameNum varchar(22),
+#                      Player varchar(22),
+#                      Action varchar(10),
+#                      SeatNum tinyint(2),
+#                      Round varchar(7),
+#                      RoundActionNum tinyint(2),
+#                      Amount decimal(8,2),
+#                      StartStack decimal(8,2),
+#                      CurrentStack decimal(8,2),
+#                      CurrentBet decimal(8,2),
+#                      CurrentPot decimal(8,2),
+#                      InvestedThisRound decimal(8,2),
+#                      NumPlayersLeft tinyint(2),
+#                      Winnings decimal(8,2),
+#                      HoleCard1 tinyint(2),
+#                      HoleCard2 tinyint(2),
+#                      ActionID int NOT NULL,
+#                      PRIMARY KEY (ActionID),
+#                      FOREIGN KEY (GameNum) REFERENCES games (GameNum)
+#                    );"""
+#                    
+#createGamesQuery = """create table games 
+#                    ( GameNum varchar(22),
+#                      Date date,
+#                      Time time,
+#                      SmallBlind decimal(2,2),
+#                      BigBlind decimal(2,2),
+#                      TableName varchar(22),
+#                      Dealer tinyint(2),
+#                      NumPlayers tinyint(2),
+#                      PRIMARY KEY (GameNum)
+#                    );"""
+#
+#for q in [createGamesQuery,createBoardsQuery,createActionsQuery]: cursor.execute(q)
+#
+## query to add CSV data to tables
+#importQuery = """LOAD DATA LOCAL INFILE '{}'
+#                INTO TABLE {}
+#                FIELDS TERMINATED BY ','
+#                OPTIONALLY ENCLOSED BY '"'
+#                LINES TERMINATED BY '\\n'
+#                IGNORE 1 LINES
+#                ({});"""
+#
+## games, then boards, then actions
+#'''
+#for f in sorted(os.listdir(os.getcwd()))[::-1]:
+#    table = f[:-4]
+#    try:
+#        cursor.execute(importQuery.format(f, table, ','.join(tableCols[table])))
+#        db.commit()
+#    except Exception:
+#        db.rollback()
+#'''
