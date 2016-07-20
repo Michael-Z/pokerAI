@@ -9,6 +9,9 @@ import codecs
 import multiprocessing
 import MySQLdb
 import pandas as pd
+import csv
+import itertools
+import random
 
 locale.setlocale(locale.LC_NUMERIC, 'en_US.utf8')
 
@@ -19,12 +22,18 @@ deckT = [str(i) + str(j) for i in cardNumRangeT for j in cardSuitRange]
 deck10 = [str(i) + str(j) for i in cardNumRange10 for j in cardSuitRange]
 actions = ['blind','deadblind','fold','check','call','bet','raise']
 
+# convert to float in the face of errors (commas for decimals)
 def toFloat(s):
     if len(s)>=3 and s[-3]==',':
         s[-3] = '.'
     return locale.atof(s)
 
-# TODO: fix NumPlayers for games where someone is sitting out (same for all rows)
+# quick convert of numeric list to list of strings
+def toStrings(l):
+    l = list(l)
+    if type(l[0])==float:
+        return [str(round(x,3)) for x in l]
+    return [str(x) for x in l]
 
 def readABSfile(filename):
     # HANDS INFORMATION
@@ -278,7 +287,6 @@ def readABSfile(filename):
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
                                   'Winnings': winnings[maybePlayerName],
-                                  'Filename': filename
                                   }
                         try:
                             for ii in [1,2]:
@@ -555,7 +563,6 @@ def readFTPfile(filename):
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
                                   'Winnings': winnings[maybePlayerName],
-                                  'Filename': filename
                                   }
                         try:
                             for ii in [1,2]:
@@ -860,7 +867,6 @@ def readONGfile(filename):
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
                                   'Winnings': winnings[maybePlayerName],
-                                  'Filename': filename
                                   }
                         try:
                             for ii in [1,2]:
@@ -1142,7 +1148,6 @@ def readPSfile(filename):
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
                                   'Winnings': winnings[maybePlayerName],
-                                  'Filename': filename
                                   }
                         try:
                             for ii in [1,2]:
@@ -1443,7 +1448,6 @@ def readPTYfile(filename):
                               'LenBoard': lenBoard,
                               'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
                               'Winnings': winnings[maybePlayerName],
-                              'Filename': filename
                               }
                     try:
                         for ii in [1,2]:
@@ -1467,14 +1471,8 @@ def readPTYfile(filename):
         
     return data
 
-######################## READ ONE FILE ########################################
-keys = ['GameNum','RoundActionNum','Date','Time','SeatNum','Round','Player','StartStack',
-        'CurrentStack','Action','Amount','AllIn','CurrentBet','CurrentPot','InvestedThisRound',
-        'NumPlayersLeft','SmallBlind','BigBlind','TableName','Dealer','NumPlayers','Winnings',
-        'LenBoard','HoleCard1','HoleCard2','Board1','Board2','Board3','Board4','Board5',
-        'Filename']
-    
-def readFileToDict(filename):
+######################## READ ONE FILE ########################################    
+def readFile(filename):
     # get dataframe from one of the source-specific functions
     bf = filename[::-1]
     src = bf[(bf.find('HLN')+3):bf.find('/')][::-1].strip()
@@ -1487,92 +1485,116 @@ def readFileToDict(filename):
     func = 'read{}file'.format(src.upper())
     full = eval('{}("{}")'.format(func, filename))
     
-    # list to dict
-    d = {}
-    for k in keys:
-        d[k] = [row[k] if k in row.keys() else '' for row in full]
-        
-    return d
+    return full
         
 ####################### READ ALL FILES ########################################
+# set up directories
+for tableType in ['Small','Database']:
+    if not os.path.exists('data/{}CSVs'.format(tableType)):
+        os.makedirs('data/{}CSVs'.format(tableType))
+
+# get all files, not including IPN because they're stupid and also dumb
 folders = ["rawdata/"+fdr for fdr in os.listdir('rawdata')]
 allFiles = [folder+"/"+f for folder in folders for f in os.listdir(folder)
             if f.find('ipn ')==-1]
 
-# create directories "tables" and "columns" for separate data
-for f in ['tables','columns']:
-    if not os.path.exists('data/'+f):
-        os.mkdir('data/'+f)
+# fields for each CSV
+fields = {'games': ['GameNum','Date','Time','SmallBlind','BigBlind','TableName',
+              'Dealer','NumPlayers'],
+          'actions': ['GameNum','Player','Action','SeatNum','Round','RoundActionNum',
+                'StartStack','CurrentStack','Amount','AllIn','CurrentBet','CurrentPot',
+                'InvestedThisRound','NumPlayersLeft','Winnings','HoleCard1','HoleCard2'],
+          'boards': ['GameNum','Round','LenBoard'] + ['Board'+str(i) for i in range(1,6)]}
+allFields = list(set(c for l in fields.values() for c in l))
+# +1 on fieldInds because in bash fields are indexed starting at 1
+fieldInds = {k: [allFields.index(c)+1 for c in v] for k,v in fields.iteritems()}
 
-# multi-threaded
+# one thread for getting and writing a file's contents
 def worker(tup):
     i,f = tup
     
-    # read in data to dictionary
-    df = readFileToDict(f)
+    # read in data
+    df = readFile(f)
     
-    # write columns to text files
-    for col in df:
-        writeTo = "data/columns/{}.txt".format(col)
-        with open(writeTo, 'ab') as outputFile:
-            outputFile.write('\n'.join([str(c) for c in df[col]]) + "\n")
-                    
-def getData(nFiles, mp=True):
+    # write each DF to its own CSV
+    with open('data/SmallCSVs/poker{}.csv'.format(i),'w') as f:
+        writer = csv.DictWriter(f, fieldnames=allFields)
+        writer.writerows(df)
+
+# write all files
+def getData(nFiles, mp=True, useExamples=False):
     startTime = datetime.datetime.now()
-        
-    # multi-threaded CSV and txt writing
+    
+    # multi-threaded or single-threaded writing, depending on flag
     if mp:
         p = multiprocessing.Pool(8)
-        p.map_async(worker,enumerate(examples[:nFiles]))
+        if useExamples:
+            p.map_async(worker,enumerate(examples[:nFiles]))
+        else:
+            p.map_async(worker,enumerate(allFiles[:nFiles]))
         p.close()
         p.join()
     else:
-        map(worker, enumerate(examples[:nFiles]))
+        if useExamples:
+            map(worker, enumerate(examples[:nFiles]))
+        else:
+            map(worker, enumerate(allFiles[:nFiles]))
     
     print "Current runtime:", datetime.datetime.now() - startTime
 
-import itertools
-import random
-srcs = ['abs','ftp','ong','ps','pty']
-stks = ['0.5','0.25','1','2','4','6','10']
-examples = []
-for sr,st in itertools.product(srcs,stks):
-    allMatches = [f for f in allFiles if f.find("/"+sr)>=0 and f.find("/"+st+"/")>=0]
-    if allMatches:
-        examples.append(random.choice(allMatches))
+# if testing, get example files; if not, do all files
+testing = False
+mp = True
 
-#getData(len(allFiles))
-
-getData(len(examples), mp=False)
+if testing:
+    srcs = ['abs','ftp','ong','ps','pty']
+    stks = ['0.5','0.25','1','2','4','6','10']
+    examples = []
+    for sr,st in itertools.product(srcs,stks):
+        allMatches = [f for f in allFiles if f.find("/"+sr)>=0 and f.find("/"+st+"/")>=0]
+        if allMatches:
+            examples.append(random.choice(allMatches))
+    getData(len(examples), mp=mp, useExamples=True)
+else:
+    getData(len(allFiles))
 
 ####################### DATA FORMATTING 2: THE SQL ############################
-# txt to CSVs, one per table in database
-gameFields = ['GameNum','Date','Time','SmallBlind','BigBlind','TableName',
-              'Dealer','NumPlayers','Filename']
-actionFields = ['GameNum','Player','Action','SeatNum','Round','RoundActionNum',
-                'StartStack','CurrentStack','Amount','CurrentBet','CurrentPot',
-                'InvestedThisRound','NumPlayersLeft','Winnings','HoleCard1','HoleCard2']
-boardFields = ['GameNum','Round'] + ['Board'+str(i) for i in range(1,6)]
+# work in data folder from now on
+os.chdir('data')
 
-tableCols = {'games': gameFields, 'actions': actionFields, 'boards': boardFields}
+# concatenate all CSVs to one big CSV
+os.system('cat SmallCSVs/*.csv > fullPoker0.csv')
 
-os.chdir('data/columns')
+# make copies of fullPoker.csv
+os.system('cp fullPoker0.csv fullPoker1.csv')
+os.system('cp fullPoker0.csv fullPoker2.csv')
+
+# slice each CSV to its relevant columns: actions and boards, then games separate
+for i,f in enumerate(['actions','boards']):
+    os.system("""
+    awk 'BEGIN {{FS=OFS=","}} {{print ${0}}}' fullPoker{1}.csv > DatabaseCSVs/{2}.csv
+    """.format(',$'.join(toStrings(fieldInds[f])), i, f).strip())
+
+colsArg = ',$'.join(toStrings(fieldInds['games']))
+colsArg = colsArg.replace('$30','gsub(/\\n/,"",$30)')
+gamesCmd = """
+    awk 'BEGIN {{FS=OFS=","}} {{print ${0}}}' fullPoker0.csv > DatabaseCSVs/games.csv
+    """.format(colsArg).strip()
+os.system(gamesCmd)
     
-for k,v in tableCols.iteritems():
-    with open('../tables/{}.csv'.format(k),'w') as fOut:
-        fOut.write(','.join(v) + '\n')
-    files = ' '.join(fName+'.txt' for fName in v)
-    os.system('paste -d"," {} >> ../tables/{}.csv'.format(files,k))
+# delete fullPoker files
+for i in range(3):
+    os.remove('fullPoker{}.csv'.format(i))
 
-# import CSVs to database tables
-os.chdir('../tables')
+# boards, actions, and games are now in DatabaseCSVs
+os.chdir('DatabaseCSVs')
 
 # remove duplicate rows from board, game CSVs
 os.system('sort -u boards.csv -o boards.csv')
 os.system('sort -u games.csv -o games.csv')
 
-# write headers to files
-for k,v in tableCols.iteritems():
+# write headers to top of files, then write all data back
+for k,v in fields.iteritems():
     with open('{}2.csv'.format(k),'w') as f:
         f.write(','.join(v) + '\n')
     os.system('cat {0}.csv >> {0}2.csv'.format(k))
@@ -1583,82 +1605,83 @@ for k,v in tableCols.iteritems():
 with open('../../pwd.txt') as f:
     pwd = f.read().strip()
 
-# debugging
-test = pd.read_csv('games.csv')
-vc = test.GameNum.value_counts()
-print test.ix[test.GameNum==vc.index[3]]
-
-
 # connect to DB
-#db = MySQLdb.connect(host='localhost',port=3307,user='ntaylorwss',passwd=pwd,
-#                     db='poker')
-#cursor = db.cursor()
-#
-## queries to create tables
-#createBoardsQuery = """create table boards
-#                    ( GameNum varchar(22),
-#                      Round varchar(7),
-#                      Board1 tinyint(2),
-#                      Board2 tinyint(2),
-#                      Board3 tinyint(2),
-#                      Board4 tinyint(2),
-#                      Board5 tinyint(2),
-#                      BoardID int NOT NULL,
-#                      PRIMARY KEY (BoardID)
-#                    );"""
-#
-#createActionsQuery = """create table actions 
-#                    ( GameNum varchar(22),
-#                      Player varchar(22),
-#                      Action varchar(10),
-#                      SeatNum tinyint(2),
-#                      Round varchar(7),
-#                      RoundActionNum tinyint(2),
-#                      Amount decimal(8,2),
-#                      StartStack decimal(8,2),
-#                      CurrentStack decimal(8,2),
-#                      CurrentBet decimal(8,2),
-#                      CurrentPot decimal(8,2),
-#                      InvestedThisRound decimal(8,2),
-#                      NumPlayersLeft tinyint(2),
-#                      Winnings decimal(8,2),
-#                      HoleCard1 tinyint(2),
-#                      HoleCard2 tinyint(2),
-#                      ActionID int NOT NULL,
-#                      PRIMARY KEY (ActionID),
-#                      FOREIGN KEY (GameNum) REFERENCES games (GameNum)
-#                    );"""
-#                    
-#createGamesQuery = """create table games 
-#                    ( GameNum varchar(22),
-#                      Date date,
-#                      Time time,
-#                      SmallBlind decimal(2,2),
-#                      BigBlind decimal(2,2),
-#                      TableName varchar(22),
-#                      Dealer tinyint(2),
-#                      NumPlayers tinyint(2),
-#                      PRIMARY KEY (GameNum)
-#                    );"""
-#
-#for q in [createGamesQuery,createBoardsQuery,createActionsQuery]: cursor.execute(q)
-#
-## query to add CSV data to tables
-#importQuery = """LOAD DATA LOCAL INFILE '{}'
-#                INTO TABLE {}
-#                FIELDS TERMINATED BY ','
-#                OPTIONALLY ENCLOSED BY '"'
-#                LINES TERMINATED BY '\\n'
-#                IGNORE 1 LINES
-#                ({});"""
-#
-## games, then boards, then actions
-#'''
-#for f in sorted(os.listdir(os.getcwd()))[::-1]:
-#    table = f[:-4]
-#    try:
-#        cursor.execute(importQuery.format(f, table, ','.join(tableCols[table])))
-#        db.commit()
-#    except Exception:
-#        db.rollback()
-#'''
+db = MySQLdb.connect(host='localhost',port=3307,user='ntaylorwss',passwd=pwd)
+cursor = db.cursor()
+
+# if it exists, blow it up and go from the beginning
+try:
+    cursor.execute('DROP DATABASE poker;')
+except MySQLdb.OperationalError:
+    pass
+cursor.execute('CREATE DATABASE poker;')
+cursor.execute('USE poker;')
+
+# queries to create tables
+createBoardsQuery = """create table boards
+                    ( GameNum varchar(22),
+                      Round varchar(7),
+                      Board1 tinyint(2),
+                      Board2 tinyint(2),
+                      Board3 tinyint(2),
+                      Board4 tinyint(2),
+                      Board5 tinyint(2),
+                      BoardID int NOT NULL,
+                      PRIMARY KEY (BoardID)
+                    );"""
+
+createActionsQuery = """create table actions 
+                    ( GameNum varchar(22),
+                      Player varchar(22),
+                      Action varchar(10),
+                      SeatNum tinyint(2),
+                      Round varchar(7),
+                      RoundActionNum tinyint(2),
+                      Amount decimal(10,2),
+                      StartStack decimal(10,2),
+                      CurrentStack decimal(10,2),
+                      CurrentBet decimal(10,2),
+                      CurrentPot decimal(10,2),
+                      InvestedThisRound decimal(10,2),
+                      NumPlayersLeft tinyint(2),
+                      Winnings decimal(10,2),
+                      HoleCard1 tinyint(2),
+                      HoleCard2 tinyint(2),
+                      ActionID int NOT NULL,
+                      PRIMARY KEY (ActionID),
+                      FOREIGN KEY (GameNum) REFERENCES games (GameNum)
+                    );"""
+                    
+createGamesQuery = """create table games 
+                    ( GameNum varchar(22),
+                      Date date,
+                      Time time,
+                      SmallBlind decimal(4,2),
+                      BigBlind decimal(4,2),
+                      TableName varchar(22),
+                      Dealer tinyint(2),
+                      NumPlayers tinyint(2),
+                      PRIMARY KEY (GameNum)
+                    );"""
+
+for q in [createGamesQuery,createBoardsQuery,createActionsQuery]: cursor.execute(q)
+
+# query to add CSV data to tables
+importQuery = """LOAD DATA LOCAL INFILE '{}'
+                INTO TABLE {}
+                FIELDS TERMINATED BY ','
+                OPTIONALLY ENCLOSED BY '"'
+                LINES TERMINATED BY '\\n'
+                IGNORE 1 LINES
+                ({});"""
+
+# games, then boards, then actions
+'''
+for f in sorted(os.listdir(os.getcwd()))[::-1]:
+    table = f[:-4]
+    try:
+        cursor.execute(importQuery.format(f, table, ','.join(fields[table])))
+        db.commit()
+    except Exception:
+        db.rollback()
+'''
