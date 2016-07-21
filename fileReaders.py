@@ -1549,7 +1549,7 @@ def getData(nFiles, mp=True, useExamples=False):
     print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
-testing = False
+testing = True
 mp = True
 startTime = datetime.datetime.now()
 
@@ -1570,28 +1570,26 @@ else:
 os.chdir('data')
 
 # concatenate all CSVs to one big CSV
-os.system('cat SmallCSVs/*.csv > fullPoker0.csv')
+os.system('cat SmallCSVs/*.csv > fullPoker.csv')
 
-# make copies of fullPoker.csv
-os.system('cp fullPoker0.csv fullPoker1.csv')
-os.system('cp fullPoker0.csv fullPoker2.csv')
+# delete small CSVs
+shutil.rmtree('SmallCSVs')
 
 # slice each CSV to its relevant columns: actions and boards, then games separate
-for i,f in enumerate(['actions','boards']):
+for f in ['actions','boards']:
     os.system("""
-    awk 'BEGIN {{FS=OFS=","}} {{print ${0}}}' fullPoker{1}.csv > DatabaseCSVs/{2}.csv
-    """.format(',$'.join(toStrings(fieldInds[f])), i, f).strip())
+    awk 'BEGIN {{FS=OFS=","}} {{print ${0}}}' fullPoker.csv > DatabaseCSVs/{2}.csv
+    """.format(',$'.join(toStrings(fieldInds[f])),f).strip())
 
 colsArg = ',$'.join(toStrings(fieldInds['games']))
 colsArg = colsArg.replace('$30','gsub(/\\n/,"",$30)')
 gamesCmd = """
-    awk 'BEGIN {{FS=OFS=","}} {{print ${0}}}' fullPoker0.csv > DatabaseCSVs/games.csv
+    awk 'BEGIN {{FS=OFS=","}} {{print ${0}}}' fullPoker.csv > DatabaseCSVs/games.csv
     """.format(colsArg).strip()
 os.system(gamesCmd)
     
 # delete fullPoker files
-for i in range(3):
-    os.remove('fullPoker{}.csv'.format(i))
+os.remove('fullPoker.csv')
 
 # boards, actions, and games are now in DatabaseCSVs
 os.chdir('DatabaseCSVs')
