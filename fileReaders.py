@@ -1578,13 +1578,13 @@ shutil.rmtree('SmallCSVs')
 # slice each CSV to its relevant columns: actions and boards, then games separate
 for f in ['actions','boards']:
     os.system("""
-    awk 'BEGIN {{FS=OFS=","}} {{print ${0}}}' fullPoker.csv > DatabaseCSVs/{2}.csv
+    awk 'BEGIN {{FS=OFS=","}} {{print ${}}}' fullPoker.csv > DatabaseCSVs/{}.csv
     """.format(',$'.join(toStrings(fieldInds[f])),f).strip())
 
 colsArg = ',$'.join(toStrings(fieldInds['games']))
 colsArg = colsArg.replace('$30','gsub(/\\n/,"",$30)')
 gamesCmd = """
-    awk 'BEGIN {{FS=OFS=","}} {{print ${0}}}' fullPoker.csv > DatabaseCSVs/games.csv
+    awk 'BEGIN {{FS=OFS=","}} {{print ${}}}' fullPoker.csv > DatabaseCSVs/games.csv
     """.format(colsArg).strip()
 os.system(gamesCmd)
     
