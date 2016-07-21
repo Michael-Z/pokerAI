@@ -1549,7 +1549,7 @@ def getData(nFiles, mp=True, useExamples=False):
     print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
-testing = True
+testing = False
 mp = True
 startTime = datetime.datetime.now()
 
@@ -1624,7 +1624,7 @@ cursor.execute('USE poker;')
 
 # queries to create tables
 createBoardsQuery = """create table boards
-                    ( GameNum varchar(22),
+                    ( GameNum varchar(25),
                       Round varchar(7),
                       Board1 tinyint(2),
                       Board2 tinyint(2),
@@ -1636,7 +1636,7 @@ createBoardsQuery = """create table boards
                     );"""
 
 createActionsQuery = """create table actions 
-                    ( GameNum varchar(22),
+                    ( GameNum varchar(25),
                       Player varchar(22),
                       Action varchar(10),
                       SeatNum tinyint(2),
@@ -1658,7 +1658,7 @@ createActionsQuery = """create table actions
                     );"""
                     
 createGamesQuery = """create table games 
-                    ( GameNum varchar(22),
+                    ( GameNum varchar(25),
                       Date date,
                       Time time,
                       SmallBlind decimal(4,2),
