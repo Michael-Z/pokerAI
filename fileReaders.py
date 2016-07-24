@@ -13,6 +13,49 @@ import csv
 import itertools
 import random
 
+# FIX PROBLEMS IN RAW TEXT DATA; SHOULD ONLY NEED TO BE RUN ONCE, BUT LEAVING...
+# ...FOR REFERENCE
+'''
+# fix ong-5-20828581290 in file /4/ong # 183
+os.chdir('../../rawdata')
+inFile = '4/ong NLH handhq_183-OBFUSCATED.txt'
+outFile = '4/ong NLH handhq_183-OBFUSCATEDnew.txt'
+with open(inFile) as f, open(outFile,'w') as outF:
+    badGame = 'R5-20828581290'
+    original = f.read()
+    new = ''
+    goodChunks = original.split(badGame)
+    for i,c in enumerate(goodChunks[:-1]):
+        new += c
+        new += badGame[:-1] + str(i)
+    new += goodChunks[-1]
+    outF.write(new)
+
+os.remove(inFile)
+os.rename(outFile, inFile)
+
+# fix ong-5-2796776209800 in files /0.5/ong # 1356-1362
+# and ong-5-27967762098[6-9] in files /0.5/ong # 1356-1362
+i = 0
+badGames = ['R5-2796776209800'] + ['R5-27967762098{}'.format(j) for j in range(6,10)]
+fNums = range(1356,1363)
+for badGame,fNum in itertools.product(badGames, fNums):
+    inFile = '0.5/ong NLH handhq_{}-OBFUSCATED.txt'.format(fNum)
+    outFile = '0.5/ong NLH handhq_{}-OBFUSCATEDnew.txt'.format(fNum)
+    with open(inFile) as f, open(outFile,'w') as outF:
+        original = f.read()
+        new = ''
+        goodChunks = original.split(badGame)
+        for c in goodChunks[:-1]:
+            new += c
+            new += badGame + '-' + str(i)
+            i += 1
+        new += goodChunks[-1]
+        outF.write(new)
+    os.remove(inFile)
+    os.rename(outFile, inFile)
+'''
+
 locale.setlocale(locale.LC_NUMERIC, 'en_US.utf8')
 
 cardNumRangeT = [str(i) for i in range(2,10)] + ['T','J','Q','K','A']
@@ -108,17 +151,14 @@ def readABSfile(filename):
             
             # go through lines to populate seats
             n = 2
-            seatnum = 1
-            seatnums = []
             while lines[n][:4]=="Seat":
                 line = lines[n]
                 playerStart = line.find("-")+2
                 playerEnd = playerStart + line[playerStart:].find(' ')
                 player = line[playerStart:playerEnd]
                 assert not '$' in player and not ')' in player, "bad player name"
-                seats[player] = seatnum
-                seatnum += 1
-                seatnums.append(int(line[5:(line.find("-")-1)].strip()))
+                s = line[(line.find(' ')+1):]
+                seats[player] = int(s[:s.find(' ')])
                 startStacks[player] = toFloat(line[(line.find("(")+2):(line.find("in chips")-1)])
                 assert startStacks[player]!=0, "start stack of 0"
                 stacks[player] = startStacks[player]
@@ -129,8 +169,13 @@ def readABSfile(filename):
                 npl += 1
                 n += 1
             
-            # make dealer num relative to missing seats
-            dealer = bisect_left(seatnums, dealer) % len(seatnums)
+            # seat nums without skipping seats
+            relSeats = {p: bisect_left(seats.values(), seats[p])
+                        for p in seats}
+            
+            # if dealer button is on empty seat, move it back
+            while not dealer in seats.values() and dealer > 0:
+                dealer -= 1
             
             # go through again to...
             # collect hole card info, check for bad names, find winner
@@ -161,7 +206,7 @@ def readABSfile(filename):
                     
                     if line[:5]=="Stage":
                         stage = src + "-" + line[(line.find("#")+1):line.find(":")]
-                        assert len(stage)<=22
+                        assert len(stage)<=30
                        
                     elif line[:3]=="***":
                         nar = j - lastNewRoundLine
@@ -192,6 +237,7 @@ def readABSfile(filename):
                     # create new row IF row is an action (starts with encrypted player name)
                     elif maybePlayerName in seats.keys():
                         seat = seats[maybePlayerName]
+                        relSeat = relSeats[maybePlayerName]
                         fullA = line[(line.find("-") + 2):].strip()
                         isAllIn = fullA.find("All-In")>=0
                         if fullA.find("Posts")>=0:
@@ -268,6 +314,7 @@ def readABSfile(filename):
                         newRow = {'GameNum':stage,
                                   'RoundActionNum':roundActionNum,
                                   'SeatNum':seat,
+                                  'RelSeatNum':relSeat,
                                   'Round':rd,
                                   'Player':maybePlayerName,
                                   'StartStack':startStacks[maybePlayerName],
@@ -388,17 +435,14 @@ def readFTPfile(filename):
             
             # go through lines to populate seats
             n = 1
-            seatnum = 1
-            seatnums = []
             while lines[n][:4]=="Seat":
                 line = lines[n]
                 playerStart = line.find(":")+2
                 playerEnd = playerStart + line[playerStart:].find(' ')
                 player = line[playerStart:playerEnd]
                 assert not '$' in player and not ')' in player, "bad player name"
-                seats[player] = seatnum
-                seatnum += 1
-                seatnums.append(int(line[5:line.find(":")]))
+                s = line[(line.find(' ')+1):]
+                seats[player] = int(s[:s.find(':')])
                 startStacks[player] = toFloat(line[(line.find("(")+2):line.find(")")])
                 assert startStacks[player]!=0, "start stack of 0"
                 stacks[player] = startStacks[player]
@@ -410,8 +454,13 @@ def readFTPfile(filename):
                 if line.find('sitting out')==-1:
                     npl += 1
                       
-            # make dealer num relative to missing seats
-            dealer = bisect_left(seatnums, dealer) % len(seatnums)
+            # seat nums without skipping seats
+            relSeats = {p: bisect_left(seats.values(), seats[p])
+                        for p in seats}
+            
+            # if dealer button is on empty seat, move it back
+            while not dealer in seats.values() and dealer > 0:
+                dealer -= 1            
 
             # go through again to...
             # collect hole card info, check for bad names, find winner
@@ -439,11 +488,10 @@ def readFTPfile(filename):
                 if lineToRead:
                     newRow = {}
                     maybePlayerName = line[:line.find(" ")]
-                    seatnum = 1
                     
                     if line[:20]=="Full Tilt Poker Game":
                         stage = src + "-" + line[(line.find("#")+1):line.find(":")]
-                        assert len(stage)<=22
+                        assert len(stage)<=30
                         
                     elif line[:3]=="***":
                         for key in roundInvestments:
@@ -472,6 +520,7 @@ def readFTPfile(filename):
                     # create new row IF row is an action (starts with encrypted player name)
                     elif maybePlayerName in seats.keys():
                         seat = seats[maybePlayerName]
+                        relSeat = relSeats[maybePlayerName]
                         fullA = line[(line.find(" ") + 1):].strip()
                         isAllIn = fullA.find("all in")>=0
                         if fullA.find("posts")>=0:
@@ -545,6 +594,7 @@ def readFTPfile(filename):
                         newRow = {'GameNum':stage,
                                   'RoundActionNum':roundActionNum,
                                   'SeatNum':seat,
+                                  'RelSeatNum':relSeat,
                                   'Round':rd,
                                   'Player':maybePlayerName,
                                   'StartStack':startStacks[maybePlayerName],
@@ -685,17 +735,14 @@ def readONGfile(filename):
             
             # go through lines to populate seats
             n = 5
-            seatnum = 1
-            seatnums = []
             while lines[n][:4]=="Seat":
                 line = lines[n]
                 playerStart = line.find(":")+2
                 playerEnd = playerStart + line[playerStart:].find(' ')
                 player = line[playerStart:playerEnd]
                 assert not '$' in player and not ')' in player, "bad player name"
-                seats[player] = seatnum
-                seatnum += 1
-                seatnums.append(int(line[5:line.find(":")]))
+                s = line[(line.find(' ')+1):]
+                seats[player] = int(s[:s.find(':')])
                 startStacks[player] = toFloat(line[(line.find("(")+2):line.find(")")])
                 assert startStacks[player]!=0, "start stack of 0"
                 stacks[player] = startStacks[player]
@@ -706,9 +753,14 @@ def readONGfile(filename):
                 npl += 1
                 n += 1
             
-            # make dealer num relative to missing seats
-            dealer = bisect_left(seatnums, dealer) % len(seatnums)
-
+            # seat nums without skipping seats
+            relSeats = {p: bisect_left(seats.values(), seats[p])
+                        for p in seats}
+            
+            # if dealer button is on empty seat, move it back
+            while not dealer in seats.values() and dealer > 0:
+                dealer -= 1
+            
             # go through again to...
             # collect hole card info, check for bad names, find winner
             for line in lines:
@@ -751,7 +803,7 @@ def readONGfile(filename):
                     
                     if line[:22]=="***** History for hand":
                         stage = src + "-" + line[24:(24 + line[24:].find("*") - 1)]
-                        assert len(stage)<=22
+                        assert len(stage)<=30
                         
                     elif line[:3]=="---" and len(line)>3:
                         nar = j - lastNewRoundLine
@@ -780,6 +832,7 @@ def readONGfile(filename):
                     # create new row IF row is an action (starts with encrypted player name)
                     elif maybePlayerName in seats.keys():
                         seat = seats[maybePlayerName]
+                        relSeat = relSeats[maybePlayerName]
                         fullA = line[(line.find(" ") + 1):].strip()
                         isAllIn = fullA.find("all in")>=0
                         if fullA.find("posts")>=0:
@@ -850,6 +903,7 @@ def readONGfile(filename):
                         newRow = {'GameNum':stage,
                                   'RoundActionNum':roundActionNum,
                                   'SeatNum':seat,
+                                  'RelSeatNum':relSeat,
                                   'Round':rd,
                                   'Player':maybePlayerName,
                                   'StartStack':startStacks[maybePlayerName],
@@ -973,17 +1027,14 @@ def readPSfile(filename):
             
             # go through lines to populate seats
             n = 2
-            seatnum = 1
-            seatnums = []
             while lines[n][:4]=="Seat" and lines[n].find("button")==-1:
                 line = lines[n]
                 playerStart = line.find(":")+2
                 playerEnd = playerStart + line[playerStart:].find('(') - 1
                 player = line[playerStart:playerEnd]
                 assert not '$' in player and not ')' in player, "bad player name"
-                seats[player] = seatnum
-                seatnum += 1
-                seatnums.append(int(line[5:line.find(":")]))
+                s = line[(line.find(' ')+1):]
+                seats[player] = int(s[:s.find(':')])
                 startStacks[player] = toFloat(line[(line.find("$")+1):line.find(" in chips")])
                 assert startStacks[player]!=0, "start stack of 0"
                 stacks[player] = startStacks[player]
@@ -994,8 +1045,13 @@ def readPSfile(filename):
                 npl += 1
                 n += 1
             
-            # make dealer num relative to missing seats
-            dealer = bisect_left(seatnums, dealer) % len(seatnums)
+            # seat nums without skipping seats
+            relSeats = {p: bisect_left(seats.values(), seats[p])
+                        for p in seats}
+            
+            # if dealer button is on empty seat, move it back
+            while not dealer in seats.values() and dealer > 0:
+                dealer -= 1            
 
             # go through again to...
             # collect hole card info, check for bad names, find winner
@@ -1030,7 +1086,7 @@ def readPSfile(filename):
                     
                     if line[:15]=="PokerStars Game":
                         stage = src + "-" + line[(line.find("#")+1):line.find(":")]
-                        assert len(stage)<=22
+                        assert len(stage)<=30
                                                 
                     elif line[:3]=="***":
                         nar = j - lastNewRoundLine
@@ -1061,6 +1117,7 @@ def readPSfile(filename):
                     # create new row IF row is an action (starts with encrypted player name)
                     elif maybePlayerName in seats.keys():
                         seat = seats[maybePlayerName]
+                        relSeat = relSeats[maybePlayerName]
                         fullA = line[(line.find(":") + 2):].strip()
                         isAllIn = fullA.find("all-in")>=0
                         if fullA.find("posts")>=0:
@@ -1132,6 +1189,7 @@ def readPSfile(filename):
                         newRow = {'GameNum':stage,
                                   'RoundActionNum':roundActionNum,
                                   'SeatNum':seat,
+                                  'RelSeatNum':relSeat,
                                   'Round':rd,
                                   'Player':maybePlayerName,
                                   'StartStack':startStacks[maybePlayerName],
@@ -1274,17 +1332,14 @@ def readPTYfile(filename):
             
             # go through lines to populate seats
             n = 7
-            seatnum = 1
-            seatnums = []
             while lines[n][:4]=="Seat":
                 line = lines[n]
                 playerStart = line.find(":")+2
                 playerEnd = playerStart + line[playerStart:].find(' ')
                 player = line[playerStart:playerEnd]
                 assert not '$' in player and not ')' in player, "bad player name"
-                seats[player] = seatnum
-                seatnum += 1
-                seatnums.append(int(line[5:line.find(":")]))
+                s = line[(line.find(' ')+1):]
+                seats[player] = int(s[:s.find(':')])
                 startStacks[player] = toFloat(line[(line.find("$")+1):(line.find("USD")-1)])
                 if not hand.find(player+" has left table"):
                     assert startStacks[player]!=0, "start stack of 0"
@@ -1295,10 +1350,15 @@ def readPTYfile(filename):
                 roundActionNum = 1
                 npl += 1
                 n += 1
-            
-            # make dealer num relative to missing seats
-            dealer = bisect_left(seatnums, dealer) % len(seatnums)
 
+            # seat nums without skipping seats
+            relSeats = {p: bisect_left(seats.values(), seats[p])
+                        for p in seats}
+            
+            # if dealer button is on empty seat, move it back
+            while not dealer in seats.values() and dealer > 0:
+                dealer -= 1
+            
             # go through again to...
             # collect hole card info, check for bad names, find winner
             for line in lines:
@@ -1323,7 +1383,7 @@ def readPTYfile(filename):
                 
                 if line[:6]=="Game #":
                     stage = src + "-" + line[(line.find("#")+1):line.find(" starts")]
-                    assert len(stage)<=22
+                    assert len(stage)<=30
                     
                 elif line[:2]=="**" and line[:5]!="*****":
                     nar = j - lastNewRoundLine
@@ -1352,6 +1412,7 @@ def readPTYfile(filename):
                 # create new row IF row is an action (starts with encrypted player name)
                 elif maybePlayerName in seats.keys():
                     seat = seats[maybePlayerName]
+                    relSeat = relSeats[maybePlayerName]
                     fullA = line[(line.find(" ") + 1):].strip()
                     isAllIn = fullA.find("all-In")>=0
                     if fullA.find("posts")>=0:
@@ -1433,6 +1494,7 @@ def readPTYfile(filename):
                     newRow = {'GameNum':stage,
                               'RoundActionNum':roundActionNum,
                               'SeatNum':seat,
+                              'RelSeatNum':relSeat,
                               'Round':rd,
                               'Player':maybePlayerName,
                               'StartStack':startStacks[maybePlayerName],
@@ -1509,9 +1571,10 @@ allFiles = [folder+"/"+f for folder in folders for f in os.listdir(folder)
 # fields for each CSV
 fields = {'games': ['GameNum','Date','Time','SmallBlind','BigBlind','TableName',
               'Dealer','NumPlayers'],
-          'actions': ['GameNum','Player','Action','SeatNum','Round','RoundActionNum',
-                'StartStack','CurrentStack','Amount','AllIn','CurrentBet','CurrentPot',
-                'InvestedThisRound','NumPlayersLeft','Winnings','HoleCard1','HoleCard2'],
+          'actions': ['GameNum','Player','Action','SeatNum','RelSeatNum','Round',
+                      'RoundActionNum','StartStack','CurrentStack','Amount',
+                      'AllIn','CurrentBet','CurrentPot','InvestedThisRound',
+                      'NumPlayersLeft','Winnings','HoleCard1','HoleCard2'],
           'boards': ['GameNum','Round','LenBoard'] + ['Board'+str(i) for i in range(1,6)]}
 allFields = list(set(c for l in fields.values() for c in l))
 # +1 on fieldInds because in bash fields are indexed starting at 1
@@ -1606,6 +1669,8 @@ for k,v in fields.iteritems():
     os.remove('{}.csv'.format(k))
     os.rename('{}2.csv'.format(k),'{}.csv'.format(k))
 
+print "Final runtime of bash:", datetime.datetime.now() - startTime
+
 # get password from file
 with open('../../pwd.txt') as f:
     pwd = f.read().strip()
@@ -1624,7 +1689,7 @@ cursor.execute('USE poker;')
 
 # queries to create tables
 createBoardsQuery = """create table boards
-                    ( GameNum varchar(25),
+                    ( GameNum varchar(30),
                       Round varchar(7),
                       Board1 tinyint(2),
                       Board2 tinyint(2),
@@ -1636,10 +1701,11 @@ createBoardsQuery = """create table boards
                     );"""
 
 createActionsQuery = """create table actions 
-                    ( GameNum varchar(25),
+                    ( GameNum varchar(30),
                       Player varchar(22),
                       Action varchar(10),
                       SeatNum tinyint(2),
+                      RelSeatNum tinyint(2),
                       Round varchar(7),
                       RoundActionNum tinyint(2),
                       Amount decimal(10,2),
@@ -1658,7 +1724,7 @@ createActionsQuery = """create table actions
                     );"""
                     
 createGamesQuery = """create table games 
-                    ( GameNum varchar(25),
+                    ( GameNum varchar(30),
                       Date date,
                       Time time,
                       SmallBlind decimal(4,2),
@@ -1668,7 +1734,7 @@ createGamesQuery = """create table games
                       NumPlayers tinyint(2),
                       PRIMARY KEY (GameNum)
                     );"""
-
+                    
 for q in [createGamesQuery,createBoardsQuery,createActionsQuery]: cursor.execute(q)
 
 # query to add CSV data to tables
@@ -1689,4 +1755,4 @@ for f in sorted(os.listdir(os.getcwd()))[::-1]:
     except Exception:
         db.rollback()
         
-print "Final runtime of entire fileReaders:", datetime.datetime.now() - startTime
+print "Final runtime of SQL:", datetime.datetime.now() - startTime
