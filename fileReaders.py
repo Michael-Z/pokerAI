@@ -12,6 +12,7 @@ import pandas as pd
 import csv
 import itertools
 import random
+from uuid import uuid4
 
 locale.setlocale(locale.LC_NUMERIC, 'en_US.utf8')
 
@@ -35,11 +36,7 @@ def toStrings(l):
         return [str(round(x,3)) for x in l]
     return [str(x) for x in l]
 
-keyCounts = {'abs':0, 'ftp':0, 'ong':0, 'ps':0, 'pty':0}
-
 def readABSfile(filename):
-    global keyCounts
-    
     # HANDS INFORMATION
     with open(filename,'r') as f:
         startString = "Stage #"
@@ -166,9 +163,8 @@ def readABSfile(filename):
                     maybePlayerName = line[:line.find(" ")]
                     
                     if line[:5]=="Stage":
-                        stage = '-'.join([src, str(keyCounts[src])])
-                        keyCounts[src] += 1
-                      
+                        stage = str(uuid4())
+                    
                     elif line[:3]=="***":
                         nar = j - lastNewRoundLine
                         lastNewRoundLine = j
@@ -325,9 +321,7 @@ def readABSfile(filename):
 ###############################################################################
 ###############################################################################
 
-def readFTPfile(filename):    
-    global keyCounts
-    
+def readFTPfile(filename):
     with codecs.open(filename, encoding='utf-8') as f:
         startString = "Full Tilt Poker Game #"
         fileContents = [startString + theRest for theRest in f.read().replace('\r','').split(startString)]
@@ -453,8 +447,7 @@ def readFTPfile(filename):
                     maybePlayerName = line[:line.find(" ")]
                     
                     if line[:20]=="Full Tilt Poker Game":
-                        stage = '-'.join([src, str(keyCounts[src])])
-                        keyCounts[src] += 1
+                        stage = str(uuid4())
                         
                     elif line[:3]=="***":
                         for key in roundInvestments:
@@ -608,8 +601,6 @@ def readFTPfile(filename):
 ###############################################################################
 
 def readONGfile(filename):
-    global keyCounts
-    
     with open(filename,'r') as f:
         startString = "***** History"
         fileContents = [startString + theRest for theRest in f.read().replace('\r','').split(startString)]
@@ -767,8 +758,7 @@ def readONGfile(filename):
                     maybePlayerName = line[:line.find(" ")]
                     
                     if line[:22]=="***** History for hand":
-                        stage = '-'.join([src, str(keyCounts[src])])
-                        keyCounts[src] += 1
+                        stage = str(uuid4())
                         
                     elif line[:3]=="---" and len(line)>3:
                         nar = j - lastNewRoundLine
@@ -919,8 +909,6 @@ def readONGfile(filename):
 ###############################################################################
 
 def readPSfile(filename):
-    global keyCounts
-    
     # HANDS TABLE
     with open(filename,'r') as f:
         startString = "PokerStars Game #"
@@ -1052,8 +1040,7 @@ def readPSfile(filename):
                     maybePlayerName = line[:line.find(":")]
                     
                     if line[:15]=="PokerStars Game":
-                        stage = '-'.join([src, str(keyCounts[src])])
-                        keyCounts[src] += 1
+                        stage = str(uuid4())
                                                 
                     elif line[:3]=="***":
                         nar = j - lastNewRoundLine
@@ -1207,8 +1194,6 @@ def readPSfile(filename):
 ###############################################################################
 
 def readPTYfile(filename):
-    global keyCounts
-    
     # HANDS TABLE
     with open(filename,'r') as f:
         startString = "Game #"
@@ -1351,8 +1336,7 @@ def readPTYfile(filename):
                 maybePlayerName = line[:line.find(" ")]
                 
                 if line[:6]=="Game #":
-                    stage = '-'.join([src, str(keyCounts[src])])
-                    keyCounts[src] += 1
+                    stage = str(uuid4())
                     
                 elif line[:2]=="**" and line[:5]!="*****":
                     nar = j - lastNewRoundLine
@@ -1581,8 +1565,8 @@ def getData(nFiles, mp=True, useExamples=False):
     print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
-testing = True
-mp = False
+testing = False
+mp = True
 startTime = datetime.datetime.now()
 
 if testing:
@@ -1658,7 +1642,7 @@ cursor.execute('USE poker;')
 
 # queries to create tables
 createBoardsQuery = """create table boards
-                    ( GameNum varchar(20),
+                    ( GameNum varchar(36),
                       Round varchar(7),
                       Board1 tinyint(2),
                       Board2 tinyint(2),
@@ -1670,7 +1654,7 @@ createBoardsQuery = """create table boards
                     );"""
 
 createActionsQuery = """create table actions 
-                    ( GameNum varchar(20),
+                    ( GameNum varchar(36),
                       Player varchar(22),
                       Action varchar(10),
                       SeatNum tinyint(2),
@@ -1693,7 +1677,7 @@ createActionsQuery = """create table actions
                     );"""
                     
 createGamesQuery = """create table games 
-                    ( GameNum varchar(20),
+                    ( GameNum varchar(36),
                       Date date,
                       Time time,
                       SmallBlind decimal(4,2),
