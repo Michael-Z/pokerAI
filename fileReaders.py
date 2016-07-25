@@ -13,49 +13,6 @@ import csv
 import itertools
 import random
 
-# FIX PROBLEMS IN RAW TEXT DATA; SHOULD ONLY NEED TO BE RUN ONCE, BUT LEAVING...
-# ...FOR REFERENCE
-'''
-# fix ong-5-20828581290 in file /4/ong # 183
-os.chdir('../../rawdata')
-inFile = '4/ong NLH handhq_183-OBFUSCATED.txt'
-outFile = '4/ong NLH handhq_183-OBFUSCATEDnew.txt'
-with open(inFile) as f, open(outFile,'w') as outF:
-    badGame = 'R5-20828581290'
-    original = f.read()
-    new = ''
-    goodChunks = original.split(badGame)
-    for i,c in enumerate(goodChunks[:-1]):
-        new += c
-        new += badGame[:-1] + str(i)
-    new += goodChunks[-1]
-    outF.write(new)
-
-os.remove(inFile)
-os.rename(outFile, inFile)
-
-# fix ong-5-2796776209800 in files /0.5/ong # 1356-1362
-# and ong-5-27967762098[6-9] in files /0.5/ong # 1356-1362
-i = 0
-badGames = ['R5-2796776209800'] + ['R5-27967762098{}'.format(j) for j in range(6,10)]
-fNums = range(1356,1363)
-for badGame,fNum in itertools.product(badGames, fNums):
-    inFile = '0.5/ong NLH handhq_{}-OBFUSCATED.txt'.format(fNum)
-    outFile = '0.5/ong NLH handhq_{}-OBFUSCATEDnew.txt'.format(fNum)
-    with open(inFile) as f, open(outFile,'w') as outF:
-        original = f.read()
-        new = ''
-        goodChunks = original.split(badGame)
-        for c in goodChunks[:-1]:
-            new += c
-            new += badGame + '-' + str(i)
-            i += 1
-        new += goodChunks[-1]
-        outF.write(new)
-    os.remove(inFile)
-    os.rename(outFile, inFile)
-'''
-
 locale.setlocale(locale.LC_NUMERIC, 'en_US.utf8')
 
 cardNumRangeT = [str(i) for i in range(2,10)] + ['T','J','Q','K','A']
@@ -78,7 +35,11 @@ def toStrings(l):
         return [str(round(x,3)) for x in l]
     return [str(x) for x in l]
 
+keyCounts = {'abs':0, 'ftp':0, 'ong':0, 'ps':0, 'pty':0}
+
 def readABSfile(filename):
+    global keyCounts
+    
     # HANDS INFORMATION
     with open(filename,'r') as f:
         startString = "Stage #"
@@ -205,9 +166,9 @@ def readABSfile(filename):
                     maybePlayerName = line[:line.find(" ")]
                     
                     if line[:5]=="Stage":
-                        stage = src + "-" + line[(line.find("#")+1):line.find(":")]
-                        assert len(stage)<=30
-                       
+                        stage = '-'.join([src, str(keyCounts[src])])
+                        keyCounts[src] += 1
+                      
                     elif line[:3]=="***":
                         nar = j - lastNewRoundLine
                         lastNewRoundLine = j
@@ -365,6 +326,8 @@ def readABSfile(filename):
 ###############################################################################
 
 def readFTPfile(filename):    
+    global keyCounts
+    
     with codecs.open(filename, encoding='utf-8') as f:
         startString = "Full Tilt Poker Game #"
         fileContents = [startString + theRest for theRest in f.read().replace('\r','').split(startString)]
@@ -490,8 +453,8 @@ def readFTPfile(filename):
                     maybePlayerName = line[:line.find(" ")]
                     
                     if line[:20]=="Full Tilt Poker Game":
-                        stage = src + "-" + line[(line.find("#")+1):line.find(":")]
-                        assert len(stage)<=30
+                        stage = '-'.join([src, str(keyCounts[src])])
+                        keyCounts[src] += 1
                         
                     elif line[:3]=="***":
                         for key in roundInvestments:
@@ -645,6 +608,8 @@ def readFTPfile(filename):
 ###############################################################################
 
 def readONGfile(filename):
+    global keyCounts
+    
     with open(filename,'r') as f:
         startString = "***** History"
         fileContents = [startString + theRest for theRest in f.read().replace('\r','').split(startString)]
@@ -802,8 +767,8 @@ def readONGfile(filename):
                     maybePlayerName = line[:line.find(" ")]
                     
                     if line[:22]=="***** History for hand":
-                        stage = src + "-" + line[24:(24 + line[24:].find("*") - 1)]
-                        assert len(stage)<=30
+                        stage = '-'.join([src, str(keyCounts[src])])
+                        keyCounts[src] += 1
                         
                     elif line[:3]=="---" and len(line)>3:
                         nar = j - lastNewRoundLine
@@ -954,6 +919,8 @@ def readONGfile(filename):
 ###############################################################################
 
 def readPSfile(filename):
+    global keyCounts
+    
     # HANDS TABLE
     with open(filename,'r') as f:
         startString = "PokerStars Game #"
@@ -1085,8 +1052,8 @@ def readPSfile(filename):
                     maybePlayerName = line[:line.find(":")]
                     
                     if line[:15]=="PokerStars Game":
-                        stage = src + "-" + line[(line.find("#")+1):line.find(":")]
-                        assert len(stage)<=30
+                        stage = '-'.join([src, str(keyCounts[src])])
+                        keyCounts[src] += 1
                                                 
                     elif line[:3]=="***":
                         nar = j - lastNewRoundLine
@@ -1240,6 +1207,8 @@ def readPSfile(filename):
 ###############################################################################
 
 def readPTYfile(filename):
+    global keyCounts
+    
     # HANDS TABLE
     with open(filename,'r') as f:
         startString = "Game #"
@@ -1382,8 +1351,8 @@ def readPTYfile(filename):
                 maybePlayerName = line[:line.find(" ")]
                 
                 if line[:6]=="Game #":
-                    stage = src + "-" + line[(line.find("#")+1):line.find(" starts")]
-                    assert len(stage)<=30
+                    stage = '-'.join([src, str(keyCounts[src])])
+                    keyCounts[src] += 1
                     
                 elif line[:2]=="**" and line[:5]!="*****":
                     nar = j - lastNewRoundLine
@@ -1612,8 +1581,8 @@ def getData(nFiles, mp=True, useExamples=False):
     print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
-testing = False
-mp = True
+testing = True
+mp = False
 startTime = datetime.datetime.now()
 
 if testing:
@@ -1645,7 +1614,7 @@ for f in ['actions','boards']:
     """.format(',$'.join(toStrings(fieldInds[f])),f).strip())
 
 colsArg = ',$'.join(toStrings(fieldInds['games']))
-colsArg = colsArg.replace('$30','gsub(/\\n/,"",$30)')
+colsArg = colsArg.replace('$31','gsub(/\\n/,"",$31)')
 gamesCmd = """
     awk 'BEGIN {{FS=OFS=","}} {{print ${}}}' fullPoker.csv > DatabaseCSVs/games.csv
     """.format(colsArg).strip()
@@ -1689,7 +1658,7 @@ cursor.execute('USE poker;')
 
 # queries to create tables
 createBoardsQuery = """create table boards
-                    ( GameNum varchar(30),
+                    ( GameNum varchar(20),
                       Round varchar(7),
                       Board1 tinyint(2),
                       Board2 tinyint(2),
@@ -1701,7 +1670,7 @@ createBoardsQuery = """create table boards
                     );"""
 
 createActionsQuery = """create table actions 
-                    ( GameNum varchar(30),
+                    ( GameNum varchar(20),
                       Player varchar(22),
                       Action varchar(10),
                       SeatNum tinyint(2),
@@ -1724,7 +1693,7 @@ createActionsQuery = """create table actions
                     );"""
                     
 createGamesQuery = """create table games 
-                    ( GameNum varchar(30),
+                    ( GameNum varchar(20),
                       Date date,
                       Time time,
                       SmallBlind decimal(4,2),
