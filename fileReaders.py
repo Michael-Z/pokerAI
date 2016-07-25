@@ -13,6 +13,9 @@ import csv
 import itertools
 import random
 from uuid import uuid4
+import sys
+
+errors = []
 
 locale.setlocale(locale.LC_NUMERIC, 'en_US.utf8')
 
@@ -45,7 +48,6 @@ def readABSfile(filename):
     
     data = []
     lineToRead = True
-    src = "abs"
     
     for i,hand in enumerate(fileContents):
         try:
@@ -274,13 +276,13 @@ def readABSfile(filename):
                                   'RelSeatNum':relSeat,
                                   'Round':rd,
                                   'Player':maybePlayerName,
-                                  'StartStack':startStacks[maybePlayerName],
-                                  'CurrentStack':stacks[maybePlayerName] + amt,
+                                  'StartStack':round(startStacks[maybePlayerName],2),
+                                  'CurrentStack':round(stacks[maybePlayerName] + amt,2),
                                   'Action':a,
-                                  'Amount':amt,
+                                  'Amount':round(amt,2),
                                   'AllIn':int(isAllIn),
-                                  'CurrentBet':oldCB,
-                                  'CurrentPot':cp-amt,
+                                  'CurrentBet':round(oldCB,2),
+                                  'CurrentPot':round(cp-amt,2),
                                   'NumPlayersLeft':npl+1 if a=='fold' else npl,
                                   'Date': dateObj,
                                   'Time': timeObj,
@@ -290,8 +292,9 @@ def readABSfile(filename):
                                   'Dealer': dealer,
                                   'NumPlayers': numPlayers,
                                   'LenBoard': lenBoard,
-                                  'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                                  'Winnings': winnings[maybePlayerName],
+                                  'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
+                                  'Winnings': round(winnings[maybePlayerName],2),
+                                  'Source':'abs'
                                   }
                         try:
                             for ii in [1,2]:
@@ -299,7 +302,7 @@ def readABSfile(filename):
                                 if c is None:
                                     newRow['HoleCard'+str(ii)] = -1
                                 else:
-                                    newRow['HoleCard'+str(ii)] = deckT.index(c)
+                                    newRow['HoleCard'+str(ii)] = deck10.index(c)
                             for ii in range(1,lenBoard+1):
                                 newRow["Board"+str(ii)] = deck10.index(board[ii-1])
                             for ii in range(lenBoard+1,6):
@@ -329,7 +332,6 @@ def readFTPfile(filename):
     
     data = []
     lineToRead = True
-    src = "ftp"
     
     for i,hand in enumerate(fileContents):
         try:
@@ -553,13 +555,13 @@ def readFTPfile(filename):
                                   'RelSeatNum':relSeat,
                                   'Round':rd,
                                   'Player':maybePlayerName,
-                                  'StartStack':startStacks[maybePlayerName],
-                                  'CurrentStack':stacks[maybePlayerName] + amt,
+                                  'StartStack':round(startStacks[maybePlayerName],2),
+                                  'CurrentStack':round(stacks[maybePlayerName] + amt,2),
                                   'Action':a,
-                                  'Amount':amt,
-                                  'AllIn':isAllIn,
-                                  'CurrentPot':cp-amt,
-                                  'CurrentBet':oldCB,
+                                  'Amount':round(amt,2),
+                                  'AllIn':int(isAllIn),
+                                  'CurrentPot':round(cp-amt,2),
+                                  'CurrentBet':round(oldCB,2),
                                   'NumPlayersLeft': npl+1 if a=='fold' else npl,
                                   'Date': dateObj,
                                   'Time': timeObj,
@@ -569,8 +571,9 @@ def readFTPfile(filename):
                                   'Dealer': dealer,
                                   'NumPlayers': numPlayers,
                                   'LenBoard': lenBoard,
-                                  'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                                  'Winnings': winnings[maybePlayerName],
+                                  'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
+                                  'Winnings': round(winnings[maybePlayerName],2),
+                                  'Source':'ftp'
                                   }
                         try:
                             for ii in [1,2]:
@@ -590,7 +593,7 @@ def readFTPfile(filename):
             if data[-1]['RoundActionNum']==1:
                 data.pop()
         except (ValueError, IndexError, KeyError, TypeError, AttributeError, ZeroDivisionError, AssertionError):
-            pass            
+            pass
         
     return data
 
@@ -608,7 +611,6 @@ def readONGfile(filename):
     
     data = []
     lineToRead = True
-    src = "ong"
     
     for i,hand in enumerate(fileContents):
         try:
@@ -861,13 +863,13 @@ def readONGfile(filename):
                                   'RelSeatNum':relSeat,
                                   'Round':rd,
                                   'Player':maybePlayerName,
-                                  'StartStack':startStacks[maybePlayerName],
-                                  'CurrentStack':stacks[maybePlayerName] + amt,
+                                  'StartStack':round(startStacks[maybePlayerName],2),
+                                  'CurrentStack':round(stacks[maybePlayerName] + amt,2),
                                   'Action':a,
-                                  'Amount':amt,
-                                  'AllIn':isAllIn,
-                                  'CurrentPot':cp-amt,
-                                  'CurrentBet':oldCB,
+                                  'Amount':round(amt,2),
+                                  'AllIn':int(isAllIn),
+                                  'CurrentPot':round(cp-amt,2),
+                                  'CurrentBet':round(oldCB,2),
                                   'NumPlayersLeft': npl+1 if a=='fold' else npl,
                                   'Date': dateObj,
                                   'Time': timeObj,
@@ -877,8 +879,9 @@ def readONGfile(filename):
                                   'Dealer': dealer,
                                   'NumPlayers': numPlayers,
                                   'LenBoard': lenBoard,
-                                  'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                                  'Winnings': winnings[maybePlayerName],
+                                  'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
+                                  'Winnings': round(winnings[maybePlayerName],2),
+                                  'Source':'ong'
                                   }
                         try:
                             for ii in [1,2]:
@@ -897,7 +900,7 @@ def readONGfile(filename):
                         roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
                 data.pop()
-        except (ValueError, IndexError, KeyError, TypeError, AttributeError, ZeroDivisionError, AssertionError) as e:
+        except (ValueError, IndexError, KeyError, TypeError, AttributeError, ZeroDivisionError, AssertionError):
             pass
         
     return data
@@ -917,8 +920,6 @@ def readPSfile(filename):
     
     data = []
     lineToRead = True
-    
-    src = "ps"
     
     for i,hand in enumerate(fileContents):
         try:
@@ -1146,13 +1147,13 @@ def readPSfile(filename):
                                   'RelSeatNum':relSeat,
                                   'Round':rd,
                                   'Player':maybePlayerName,
-                                  'StartStack':startStacks[maybePlayerName],
-                                  'CurrentStack':stacks[maybePlayerName] + amt,
+                                  'StartStack':round(startStacks[maybePlayerName],2),
+                                  'CurrentStack':round(stacks[maybePlayerName] + amt,2),
                                   'Action':a,
-                                  'Amount':amt,
-                                  'AllIn':isAllIn,
-                                  'CurrentBet':oldCB,
-                                  'CurrentPot':cp-amt,
+                                  'Amount':round(amt,2),
+                                  'AllIn':int(isAllIn),
+                                  'CurrentBet':round(oldCB,2),
+                                  'CurrentPot':round(cp-amt,2),
                                   'NumPlayersLeft':npl+1 if a=='fold' else npl,
                                   'Date': dateObj,
                                   'Time': timeObj,
@@ -1162,8 +1163,9 @@ def readPSfile(filename):
                                   'Dealer': dealer,
                                   'NumPlayers': numPlayers,
                                   'LenBoard': lenBoard,
-                                  'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                                  'Winnings': winnings[maybePlayerName],
+                                  'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
+                                  'Winnings': round(winnings[maybePlayerName],2),
+                                  'Source':'ps'
                                   }
                         try:
                             for ii in [1,2]:
@@ -1201,9 +1203,7 @@ def readPTYfile(filename):
         fileContents = fileContents[1:]
     
     data = []
-    
-    src = "pty"
-    
+        
     for i,hand in enumerate(fileContents):
         try:
             # if lost connection, drop hand
@@ -1312,7 +1312,7 @@ def readPTYfile(filename):
             # if dealer button is on empty seat, move it back
             while not dealer in seats.values() and dealer > 0:
                 dealer -= 1
-            
+                        
             # go through again to...
             # collect hole card info, check for bad names, find winner
             for line in lines:
@@ -1450,13 +1450,13 @@ def readPTYfile(filename):
                               'RelSeatNum':relSeat,
                               'Round':rd,
                               'Player':maybePlayerName,
-                              'StartStack':startStacks[maybePlayerName],
-                              'CurrentStack':stacks[maybePlayerName] + amt,
+                              'StartStack':round(startStacks[maybePlayerName],2),
+                              'CurrentStack':round(stacks[maybePlayerName] + amt,2),
                               'Action':a,
-                              'Amount':amt,
-                              'AllIn':isAllIn,
-                              'CurrentBet':oldCB,
-                              'CurrentPot':cp-amt,
+                              'Amount':round(amt,2),
+                              'AllIn':int(isAllIn),
+                              'CurrentBet':round(oldCB,2),
+                              'CurrentPot':round(cp-amt,2),
                               'NumPlayersLeft':npl+1 if a=='fold' else npl,
                               'Date': dateObj,
                               'Time': timeObj,
@@ -1466,8 +1466,9 @@ def readPTYfile(filename):
                               'Dealer': dealer,
                               'NumPlayers': numPlayers,
                               'LenBoard': lenBoard,
-                              'InvestedThisRound': roundInvestments[maybePlayerName] - amt,
-                              'Winnings': winnings[maybePlayerName],
+                              'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
+                              'Winnings': round(winnings[maybePlayerName],2),
+                              'Source':'pty'
                               }
                     try:
                         for ii in [1,2]:
@@ -1488,7 +1489,7 @@ def readPTYfile(filename):
                 data.pop()
         except (ValueError, IndexError, KeyError, TypeError, AttributeError, ZeroDivisionError, AssertionError):
             pass
-        
+
     return data
 
 ######################## READ ONE FILE ########################################    
@@ -1522,8 +1523,8 @@ allFiles = [folder+"/"+f for folder in folders for f in os.listdir(folder)
             if f.find('ipn ')==-1]
 
 # fields for each CSV
-fields = {'games': ['GameNum','Date','Time','SmallBlind','BigBlind','TableName',
-              'Dealer','NumPlayers'],
+fields = {'games': ['GameNum','Source','Date','Time','SmallBlind','BigBlind','TableName',
+                    'NumPlayers','Dealer'],
           'actions': ['GameNum','Player','Action','SeatNum','RelSeatNum','Round',
                       'RoundActionNum','StartStack','CurrentStack','Amount',
                       'AllIn','CurrentBet','CurrentPot','InvestedThisRound',
@@ -1565,7 +1566,7 @@ def getData(nFiles, mp=True, useExamples=False):
     print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
-testing = False
+testing = True
 mp = True
 startTime = datetime.datetime.now()
 
@@ -1591,18 +1592,12 @@ os.system('cat SmallCSVs/*.csv > fullPoker.csv')
 # delete small CSVs
 shutil.rmtree('SmallCSVs')
 
-# slice each CSV to its relevant columns: actions and boards, then games separate
-for f in ['actions','boards']:
+## slice each CSV to its relevant columns: actions and boards, then games separate
+for f in ['actions','boards','games']:
     os.system("""
     awk 'BEGIN {{FS=OFS=","}} {{print ${}}}' fullPoker.csv > DatabaseCSVs/{}.csv
     """.format(',$'.join(toStrings(fieldInds[f])),f).strip())
 
-colsArg = ',$'.join(toStrings(fieldInds['games']))
-colsArg = colsArg.replace('$31','gsub(/\\n/,"",$31)')
-gamesCmd = """
-    awk 'BEGIN {{FS=OFS=","}} {{print ${}}}' fullPoker.csv > DatabaseCSVs/games.csv
-    """.format(colsArg).strip()
-os.system(gamesCmd)
     
 # delete fullPoker files
 os.remove('fullPoker.csv')
@@ -1644,34 +1639,36 @@ cursor.execute('USE poker;')
 createBoardsQuery = """create table boards
                     ( GameNum varchar(36),
                       Round varchar(7),
-                      Board1 tinyint(2),
-                      Board2 tinyint(2),
-                      Board3 tinyint(2),
-                      Board4 tinyint(2),
-                      Board5 tinyint(2),
-                      BoardID int NOT NULL,
+                      LenBoard smallint(2),
+                      Board1 smallint(2),
+                      Board2 smallint(2),
+                      Board3 smallint(2),
+                      Board4 smallint(2),
+                      Board5 smallint(2),
+                      BoardID int NOT NULL AUTO_INCREMENT,
                       PRIMARY KEY (BoardID)
                     );"""
 
 createActionsQuery = """create table actions 
                     ( GameNum varchar(36),
-                      Player varchar(22),
+                      Player varchar(30),
                       Action varchar(10),
                       SeatNum tinyint(2),
                       RelSeatNum tinyint(2),
                       Round varchar(7),
                       RoundActionNum tinyint(2),
+                      StartStack decimal(12,2),
+                      CurrentStack decimal(12,2),
                       Amount decimal(10,2),
-                      StartStack decimal(10,2),
-                      CurrentStack decimal(10,2),
-                      CurrentBet decimal(10,2),
-                      CurrentPot decimal(10,2),
+                      AllIn boolean,
+                      CurrentBet decimal(12,2),
+                      CurrentPot decimal(12,2),
                       InvestedThisRound decimal(10,2),
                       NumPlayersLeft tinyint(2),
                       Winnings decimal(10,2),
-                      HoleCard1 tinyint(2),
-                      HoleCard2 tinyint(2),
-                      ActionID int NOT NULL,
+                      HoleCard1 smallint(2),
+                      HoleCard2 smallint(2),
+                      ActionID int NOT NULL AUTO_INCREMENT,
                       PRIMARY KEY (ActionID),
                       FOREIGN KEY (GameNum) REFERENCES games (GameNum)
                     );"""
