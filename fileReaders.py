@@ -296,19 +296,17 @@ def readABSfile(filename):
                                   'Winnings': round(winnings[maybePlayerName],2),
                                   'Source':'abs'
                                   }
-                        try:
-                            for ii in [1,2]:
-                                c = holeCards[maybePlayerName][ii-1]
-                                if c is None:
-                                    newRow['HoleCard'+str(ii)] = -1
-                                else:
-                                    newRow['HoleCard'+str(ii)] = deck10.index(c)
-                            for ii in range(1,lenBoard+1):
-                                newRow["Board"+str(ii)] = deck10.index(board[ii-1])
-                            for ii in range(lenBoard+1,6):
-                                newRow["Board"+str(ii)] = -1
-                        except ValueError:
-                            pass
+                        for ii in [1,2]:
+                            c = holeCards[maybePlayerName][ii-1]
+                            if c is None:
+                                newRow['HoleCard'+str(ii)] = -1
+                            else:
+                                newRow['HoleCard'+str(ii)] = deck10.index(c)
+                        for ii in range(1,6):
+                            if lenBoard >= ii:
+                                newRow['Board'+str(ii)] = deck10.index(board[ii-1])
+                            else:
+                                newRow['Board'+str(ii)] = -1
                         data.append(newRow)
                         roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -575,19 +573,17 @@ def readFTPfile(filename):
                                   'Winnings': round(winnings[maybePlayerName],2),
                                   'Source':'ftp'
                                   }
-                        try:
-                            for ii in [1,2]:
-                                c = holeCards[maybePlayerName][ii-1]
-                                if c is None:
-                                    newRow['HoleCard'+str(ii)] = -1
-                                else:
-                                    newRow['HoleCard'+str(ii)] = deckT.index(c)
-                            for ii in range(1,lenBoard+1):
-                                newRow["Board"+str(ii)] = deckT.index(board[ii-1])
-                            for ii in range(lenBoard+1,6):
-                                newRow["Board"+str(ii)] = -1
-                        except ValueError:
-                            pass
+                        for ii in [1,2]:
+                            c = holeCards[maybePlayerName][ii-1]
+                            if c is None:
+                                newRow['HoleCard'+str(ii)] = -1
+                            else:
+                                newRow['HoleCard'+str(ii)] = deckT.index(c)
+                        for ii in range(1,6):
+                            if lenBoard >= ii:
+                                newRow['Board'+str(ii)] = deckT.index(board[ii-1])
+                            else:
+                                newRow['Board'+str(ii)] = -1
                         data.append(newRow)
                         roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -883,19 +879,17 @@ def readONGfile(filename):
                                   'Winnings': round(winnings[maybePlayerName],2),
                                   'Source':'ong'
                                   }
-                        try:
-                            for ii in [1,2]:
-                                c = holeCards[maybePlayerName][ii-1]
-                                if c is None:
-                                    newRow['HoleCard'+str(ii)] = -1
-                                else:
-                                    newRow['HoleCard'+str(ii)] = deckT.index(c)
-                            for ii in range(1,lenBoard+1):
-                                newRow["Board"+str(ii)] = deckT.index(board[ii-1])
-                            for ii in range(lenBoard+1,6):
-                                newRow["Board"+str(ii)] = -1
-                        except ValueError:
-                            pass
+                        for ii in [1,2]:
+                            c = holeCards[maybePlayerName][ii-1]
+                            if c is None:
+                                newRow['HoleCard'+str(ii)] = -1
+                            else:
+                                newRow['HoleCard'+str(ii)] = deckT.index(c)
+                        for ii in range(1,6):
+                            if lenBoard >= ii:
+                                newRow['Board'+str(ii)] = deckT.index(board[ii-1])
+                            else:
+                                newRow['Board'+str(ii)] = -1
                         data.append(newRow)
                         roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -1167,19 +1161,17 @@ def readPSfile(filename):
                                   'Winnings': round(winnings[maybePlayerName],2),
                                   'Source':'ps'
                                   }
-                        try:
-                            for ii in [1,2]:
-                                c = holeCards[maybePlayerName][ii-1]
-                                if c is None:
-                                    newRow['HoleCard'+str(ii)] = -1
-                                else:
-                                    newRow['HoleCard'+str(ii)] = deckT.index(c)
-                            for ii in range(1,lenBoard+1):
-                                newRow["Board"+str(ii)] = deckT.index(board[ii-1])
-                            for ii in range(lenBoard+1,6):
-                                newRow["Board"+str(ii)] = -1
-                        except ValueError:
-                            pass
+                        for ii in [1,2]:
+                            c = holeCards[maybePlayerName][ii-1]
+                            if c is None:
+                                newRow['HoleCard'+str(ii)] = -1
+                            else:
+                                newRow['HoleCard'+str(ii)] = deckT.index(c)
+                        for ii in range(1,6):
+                            if lenBoard >= ii:
+                                newRow['Board'+str(ii)] = deckT.index(board[ii-1])
+                            else:
+                                newRow['Board'+str(ii)] = -1
                         data.append(newRow)
                         roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -1470,19 +1462,17 @@ def readPTYfile(filename):
                               'Winnings': round(winnings[maybePlayerName],2),
                               'Source':'pty'
                               }
-                    try:
-                        for ii in [1,2]:
-                            c = holeCards[maybePlayerName][ii-1]
-                            if c is None:
-                                newRow['HoleCard'+str(ii)] = -1
-                            else:
-                                newRow['HoleCard'+str(ii)] = deckT.index(c)
-                        for ii in range(1,lenBoard+1):
-                            newRow["Board"+str(ii)] = deckT.index(board[ii-1])
-                        for ii in range(lenBoard+1,6):
-                            newRow["Board"+str(ii)] = -1
-                    except ValueError:
-                        pass
+                    for ii in [1,2]:
+                        c = holeCards[maybePlayerName][ii-1]
+                        if c is None:
+                            newRow['HoleCard'+str(ii)] = -1
+                        else:
+                            newRow['HoleCard'+str(ii)] = deckT.index(c)
+                    for ii in range(1,6):
+                        if lenBoard >= ii:
+                            newRow['Board'+str(ii)] = deckT.index(board[ii-1])
+                        else:
+                            newRow['Board'+str(ii)] = -1
                     data.append(newRow)
                     roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -1577,7 +1567,8 @@ if testing:
     for sr,st in itertools.product(srcs,stks):
         allMatches = [f for f in allFiles if f.find("/"+sr)>=0 and f.find("/"+st+"/")>=0]
         if allMatches:
-            examples.append(random.choice(allMatches))
+            #examples.append(random.choice(allMatches))
+            examples += random.sample(allMatches, 10)
     getData(len(examples), mp=mp, useExamples=True)
 else:
     getData(len(allFiles))
@@ -1648,8 +1639,9 @@ createBoardsQuery = """create table boards
                       BoardID int NOT NULL AUTO_INCREMENT,
                       PRIMARY KEY (BoardID)
                     );"""
+                    #FOREIGN KEY (GameNum) REFERENCES games (GameNum)
 
-createActionsQuery = """create table actions 
+createActionsQuery = """create table actions
                     ( GameNum varchar(36),
                       Player varchar(30),
                       Action varchar(10),
@@ -1669,12 +1661,13 @@ createActionsQuery = """create table actions
                       HoleCard1 smallint(2),
                       HoleCard2 smallint(2),
                       ActionID int NOT NULL AUTO_INCREMENT,
-                      PRIMARY KEY (ActionID),
-                      FOREIGN KEY (GameNum) REFERENCES games (GameNum)
+                      PRIMARY KEY (ActionID)
                     );"""
+                    #FOREIGN KEY (GameNum) REFERENCES games (GameNum)
                     
 createGamesQuery = """create table games 
                     ( GameNum varchar(36),
+                      Source varchar(3),
                       Date date,
                       Time time,
                       SmallBlind decimal(4,2),
