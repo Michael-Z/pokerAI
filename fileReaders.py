@@ -1567,8 +1567,8 @@ if testing:
     for sr,st in itertools.product(srcs,stks):
         allMatches = [f for f in allFiles if f.find("/"+sr)>=0 and f.find("/"+st+"/")>=0]
         if allMatches:
-            #examples.append(random.choice(allMatches))
-            examples += random.sample(allMatches, 10)
+            examples.append(random.choice(allMatches))
+            #examples += random.sample(allMatches, 10)
     getData(len(examples), mp=mp, useExamples=True)
 else:
     getData(len(allFiles))
@@ -1638,8 +1638,7 @@ createBoardsQuery = """create table boards
                       Board5 smallint(2),
                       BoardID int NOT NULL AUTO_INCREMENT,
                       PRIMARY KEY (BoardID)
-                    );"""
-                    #FOREIGN KEY (GameNum) REFERENCES games (GameNum)
+                    ) ENGINE = MYISAM;"""
 
 createActionsQuery = """create table actions
                     ( GameNum varchar(36),
@@ -1652,7 +1651,7 @@ createActionsQuery = """create table actions
                       StartStack decimal(12,2),
                       CurrentStack decimal(12,2),
                       Amount decimal(10,2),
-                      AllIn boolean,
+                      AllIn tinyint(1),
                       CurrentBet decimal(12,2),
                       CurrentPot decimal(12,2),
                       InvestedThisRound decimal(10,2),
@@ -1660,10 +1659,15 @@ createActionsQuery = """create table actions
                       Winnings decimal(10,2),
                       HoleCard1 smallint(2),
                       HoleCard2 smallint(2),
+                      SeatRelDealer tinyint(2),
+                      isFold tinyint(1),
+                      isCheck tinyint(1),
+                      isCall tinyint(1),
+                      isBet tinyint(1),
+                      isRaise tinyint(1),
                       ActionID int NOT NULL AUTO_INCREMENT,
                       PRIMARY KEY (ActionID)
-                    );"""
-                    #FOREIGN KEY (GameNum) REFERENCES games (GameNum)
+                    ) ENGINE = MYISAM;"""
                     
 createGamesQuery = """create table games 
                     ( GameNum varchar(36),
@@ -1676,7 +1680,7 @@ createGamesQuery = """create table games
                       Dealer tinyint(2),
                       NumPlayers tinyint(2),
                       PRIMARY KEY (GameNum)
-                    );"""
+                    ) ENGINE = MYISAM;"""
                     
 for q in [createGamesQuery,createBoardsQuery,createActionsQuery]: cursor.execute(q)
 
@@ -1698,4 +1702,22 @@ for f in sorted(os.listdir(os.getcwd()))[::-1]:
     except Exception:
         db.rollback()
         
+# add helper columns to actions
+for a in ['fold','check','call','bet','raise']:
+    try:
+        cursor.execute(
+        'UPDATE actions SET is{0} = (SELECT Action="{0}");'.format(
+                a))
+        db.commit()
+    except Exception:
+        db.rollback()
+try:
+    cursor.execute("""UPDATE actions AS a INNER JOIN games AS g 
+        ON a.GameNum=g.GameNum SET a.SeatRelDealer = (SELECT 
+        (a.SeatNum-g.Dealer)*(a.SeatNum>g.Dealer)+
+        (g.Dealer-a.SeatNum)*(g.Dealer>a.SeatNum));""")
+    db.commit()
+except Exception:
+    db.rollback()
+
 print "Final runtime of SQL:", datetime.datetime.now() - startTime
