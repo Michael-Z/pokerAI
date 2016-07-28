@@ -1,8 +1,21 @@
 import random
 
-handsFile = open("C:/Users/Nash Taylor/Documents/My Documents/School/Machine Learning Nanodegree/Capstone/handranks.txt")
-handsData = [int(x) for x in handsFile.read().split()]
-handsFile.close()
+'''
+# get the dat file from:
+# https://github.com/christophschmalhofer/poker/blob/master/XPokerEval/XPokerEval.TwoPlusTwo/HandRanks.dat
+import array
+ranksFile = "HandRanks.dat"
+handsFile = "HandRanks.txt"
+ranksData = array.array('i')
+with open(ranksFile,'rb') as f:
+    ranksData.fromfile(f, 32487834)
+ranksData = list(ranksData)
+with open(handsFile,'w') as f:
+    f.write(','.join(str(i) for i in ranksData))
+'''
+
+with open('HandRanks.txt') as f:
+    handsData = [int(x) for x in f.read().split(',')]
 
 cardNumRange = [str(i) for i in range(2,10)] + ['T','J','Q','K','A']
 cardSuitRange = ['d','c','h','s']
