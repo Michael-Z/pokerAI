@@ -11,6 +11,7 @@ import csv
 from itertools import izip, product, combinations
 import MySQLdb
 
+######################### PREP AND UTILITY FUNCTIONS ##########################
 # quick convert of numeric list to list of strings
 def toStrings(l):
     l = list(l)
@@ -45,424 +46,152 @@ for fdr in ['table','column']:
     os.makedirs('features/{}'.format(fdr))
 os.makedirs('features/new')
 
-# create: quickFeatures, columnFeatures, tableFeatures,
-#           featuresOld, featuresNew, features
-quickCreate = """CREATE TABLE quickFeatures
-            ( ActionID int NOT NULL AUTO_INCREMENT,
-              Action varchar(10),
-              Round varchar(10),
-              FacingBet tinyint(2),
-              AmountToCall decimal(10,2),
-              CurrentPot decimal(10,2),
-              NumPlayersStart tinyint(2),
-              NumPlayersLeft tinyint(2),
-              BigBlind decimal(4,2),
-              PRIMARY KEY (ActionID)
-            ) ENGINE = MYISAM;"""
-tableCreate = """ CREATE TABLE tableFeatures
-            ( ActionID int NOT NULL AUTO_INCREMENT,
-              NumChecksGame tinyint(2),
-              LastToAct tinyint(2),
-              LastToActStack decimal(10,2),
-              FinalPotLastHandTable decimal(10,2),
-              CBisCheckRaise tinyint(1),
-              BetsRaisesGame tinyint(2),
-              BetsRaisesPF tinyint(2),
-              BetsRaisesF tinyint(2),
-              BetsRaisesT tinyint(2),
-              BetsRaisesR tinyint(2),
-              NumPairsFlop tinyint(2),
-              NumPairsTurn tinyint(2),
-              NumPairsRiver tinyint(2),
-              TwoToFlushDrawFlop tinyint(1),
-              ThreeToFlushDrawFlop tinyint(1),
-              FlushTurned tinyint(1),
-              FlushRivered tinyint(1),
-              HighCardFlop tinyint(2),
-              HighCardTurn tinyint(2),
-              HighCardRiver tinyint(2),
-              RangeFlop tinyint(2),
-              RangeTurn tinyint(2),
-              RangeRiver tinyint(2),
-              TwoToStraightDrawFlop tinyint(1),
-              TwoToStraightDrawTurn tinyint(1),
-              ThreeToStraightFlop tinyint(1),
-              ThreeOrMoreToStraightTurn tinyint(1),
-              ThreeOrMoreToStraightRiver tinyint(1),
-              TurnOverCard tinyint(1),
-              RiverOverCard tinyint(1),
-              NumFaceCardsFlop tinyint(2),
-              NumFaceCardsTurn tinyint(2),
-              NumFaceCardsRiver tinyint(2),
-              AvgCardRankFlop decimal(4,2),
-              AvgCardRankTurn decimal(4,2),
-              AvgCardRankRiver decimal(4,2),
-              TurnBrick tinyint(1),
-              RiverBrick tinyint(1),
-              MeanOtherStackRelBBRelSelf decimal(6,2),
-              SDOtherStackRelBBRelSelf decimal(6,2),
-              MaxOtherStackRelBBRelSelf decimal(6,2),
-              MinOtherStackRelBBRelSelf decimal(6,2),
-              AggressorPos tinyint(2),
-              AggInPosVsMe tinyint(1),
-              AggStack decimal(10,2),
-              IsAgg tinyint(1),
-              SeatRelDealerRelNP tinyint(2),
-              EffectiveStack decimal(10,2),
-              ESvsAgg decimal(10,2),
-              StackToPot decimal(8,2),
-              IsSB tinyint(1),
-              IsBB tinyint(1),
-              InvestedThisGame decimal(10,2),
-              PRIMARY KEY (ActionID)
-            ) ENGINE = MYISAM;"""
-columnTempCreate = """ CREATE TABLE columnFeaturesTemp
-            ( ActionID int NOT NULL AUTO_INCREMENT,
-              Action varchar(10),
-              LastAction varchar(10),
-              AllFoldPct decimal(4,3),
-              AllCheckPct decimal(4,3),
-              AllCallPct decimal(4,3),
-              AllBetPct decimal(4,3),
-              AllRaisePct decimal(4,3),
-              PreflopFoldPct decimal(4,3),
-              PreflopCheckPct decimal(4,3),
-              PreflopCallPct decimal(4,3),
-              PreflopBetPct decimal(4,3),
-              PreflopRaisePct decimal(4,3),
-              FlopFoldPct decimal(4,3),
-              FlopCheckPct decimal(4,3),
-              FlopCallPct decimal(4,3),
-              FlopBetPct decimal(4,3),
-              FlopRaisePct decimal(4,3),
-              TurnFoldPct decimal(4,3),
-              TurnCheckPct decimal(4,3),
-              TurnCallPct decimal(4,3),
-              TurnBetPct decimal(4,3),
-              TurnRaisePct decimal(4,3),
-              RiverFoldPct decimal(4,3),
-              RiverCheckPct decimal(4,3),
-              RiverCallPct decimal(4,3),
-              RiverBetPct decimal(4,3),
-              RiverRaisePct decimal(4,3),
-              VPIP decimal(4,3),
-              NetAtTable decimal(10,2),
-              ThreeBetPct decimal(4,3),
-              SeeSDPct decimal(4,3),
-              WinWhenSeeFlopPct decimal(4,3),
-              WinWithoutSDPct decimal(4,3),
-              WinAtSDPct decimal(4,3),
-              ContBetPct decimal(4,3),
-              BetRiverPct decimal(4,3),
-              CallOrRaisePFRPct decimal(4,3),
-              FoldToCBetPct decimal(4,3),
-              CallCBetPct decimal(4,3),
-              RaiseCBetPct decimal(4,3),
-              FoldToFlopBetPct decimal(4,3),
-              CallFlopBetPct decimal(4,3),
-              RaiseFlopBetPct decimal(4,3),
-              NetLastHandRelSS decimal(8,2),
-              PartInLastHand tinyint(1),
-              PRIMARY KEY (ActionID)
-            ) ENGINE = MYISAM;"""
-columnCreate = """ CREATE TABLE columnFeatures
-            ( ActionID int NOT NULL AUTO_INCREMENT,
-              LastAction varchar(10),
-              AllFoldPct decimal(4,3),
-              AllCheckPct decimal(4,3),
-              AllCallPct decimal(4,3),
-              AllBetPct decimal(4,3),
-              AllRaisePct decimal(4,3),
-              PreflopFoldPct decimal(4,3),
-              PreflopCheckPct decimal(4,3),
-              PreflopCallPct decimal(4,3),
-              PreflopBetPct decimal(4,3),
-              PreflopRaisePct decimal(4,3),
-              FlopFoldPct decimal(4,3),
-              FlopCheckPct decimal(4,3),
-              FlopCallPct decimal(4,3),
-              FlopBetPct decimal(4,3),
-              FlopRaisePct decimal(4,3),
-              TurnFoldPct decimal(4,3),
-              TurnCheckPct decimal(4,3),
-              TurnCallPct decimal(4,3),
-              TurnBetPct decimal(4,3),
-              TurnRaisePct decimal(4,3),
-              RiverFoldPct decimal(4,3),
-              RiverCheckPct decimal(4,3),
-              RiverCallPct decimal(4,3),
-              RiverBetPct decimal(4,3),
-              RiverRaisePct decimal(4,3),
-              VPIP decimal(4,3),
-              NetAtTable decimal(10,2),
-              ThreeBetPct decimal(4,3),
-              SeeSDPct decimal(4,3),
-              WinWhenSeeFlopPct decimal(4,3),
-              WinWithoutSDPct decimal(4,3),
-              WinAtSDPct decimal(4,3),
-              ContBetPct decimal(4,3),
-              BetRiverPct decimal(4,3),
-              CallOrRaisePFRPct decimal(4,3),
-              FoldToCBetPct decimal(4,3),
-              CallCBetPct decimal(4,3),
-              RaiseCBetPct decimal(4,3),
-              FoldToFlopBetPct decimal(4,3),
-              CallFlopBetPct decimal(4,3),
-              RaiseFlopBetPct decimal(4,3),
-              NetLastHandRelSS decimal(8,2),
-              PartInLastHand tinyint(1),
-              PRIMARY KEY (ActionID)
-            ) ENGINE = MYISAM;"""
-oldCreate = """CREATE TABLE featuresOld
-            ( ActionID int NOT NULL AUTO_INCREMENT,
-              Action varchar(10),
-              Round varchar(10),
-              FacingBet tinyint(2),
-              AmountToCall decimal(10,2),
-              CurrentPot decimal(10,2),
-              NumPlayersStart tinyint(2),
-              NumPlayersLeft tinyint(2),
-              BigBlind decimal(4,2),
-              NumChecksGame tinyint(2),
-              LastToAct tinyint(2),
-              LastToActStack decimal(10,2),
-              FinalPotLastHandTable decimal(10,2),
-              CBisCheckRaise tinyint(1),
-              BetsRaisesGame tinyint(2),
-              BetsRaisesPF tinyint(2),
-              BetsRaisesF tinyint(2),
-              BetsRaisesT tinyint(2),
-              BetsRaisesR tinyint(2),
-              NumPairsFlop tinyint(2),
-              NumPairsTurn tinyint(2),
-              NumPairsRiver tinyint(2),
-              TwoToFlushDrawFlop tinyint(1),
-              ThreeToFlushDrawFlop tinyint(1),
-              FlushTurned tinyint(1),
-              FlushRivered tinyint(1),
-              HighCardFlop tinyint(2),
-              HighCardTurn tinyint(2),
-              HighCardRiver tinyint(2),
-              RangeFlop tinyint(2),
-              RangeTurn tinyint(2),
-              RangeRiver tinyint(2),
-              TwoToStraightDrawFlop tinyint(1),
-              TwoToStraightDrawTurn tinyint(1),
-              ThreeToStraightFlop tinyint(1),
-              ThreeOrMoreToStraightTurn tinyint(1),
-              ThreeOrMoreToStraightRiver tinyint(1),
-              TurnOverCard tinyint(1),
-              RiverOverCard tinyint(1),
-              NumFaceCardsFlop tinyint(2),
-              NumFaceCardsTurn tinyint(2),
-              NumFaceCardsRiver tinyint(2),
-              AvgCardRankFlop decimal(4,2),
-              AvgCardRankTurn decimal(4,2),
-              AvgCardRankRiver decimal(4,2),
-              TurnBrick tinyint(1),
-              RiverBrick tinyint(1),
-              MeanOtherStackRelBBRelSelf decimal(6,2),
-              SDOtherStackRelBBRelSelf decimal(6,2),
-              MaxOtherStackRelBBRelSelf decimal(6,2),
-              MinOtherStackRelBBRelSelf decimal(6,2),
-              AggressorPos tinyint(2),
-              AggInPosVsMe tinyint(1),
-              AggStack decimal(10,2),
-              IsAgg tinyint(1),
-              SeatRelDealerRelNP tinyint(2),
-              EffectiveStack decimal(10,2),
-              ESvsAgg decimal(10,2),
-              StackToPot decimal(8,2),
-              IsSB tinyint(1),
-              IsBB tinyint(1),
-              InvestedThisGame decimal(10,2),
-              LastAction varchar(10),
-              AllFoldPct decimal(4,3),
-              AllCheckPct decimal(4,3),
-              AllCallPct decimal(4,3),
-              AllBetPct decimal(4,3),
-              AllRaisePct decimal(4,3),
-              PreflopFoldPct decimal(4,3),
-              PreflopCheckPct decimal(4,3),
-              PreflopCallPct decimal(4,3),
-              PreflopBetPct decimal(4,3),
-              PreflopRaisePct decimal(4,3),
-              FlopFoldPct decimal(4,3),
-              FlopCheckPct decimal(4,3),
-              FlopCallPct decimal(4,3),
-              FlopBetPct decimal(4,3),
-              FlopRaisePct decimal(4,3),
-              TurnFoldPct decimal(4,3),
-              TurnCheckPct decimal(4,3),
-              TurnCallPct decimal(4,3),
-              TurnBetPct decimal(4,3),
-              TurnRaisePct decimal(4,3),
-              RiverFoldPct decimal(4,3),
-              RiverCheckPct decimal(4,3),
-              RiverCallPct decimal(4,3),
-              RiverBetPct decimal(4,3),
-              RiverRaisePct decimal(4,3),
-              VPIP decimal(4,3),
-              NetAtTable decimal(10,2),
-              ThreeBetPct decimal(4,3),
-              SeeSDPct decimal(4,3),
-              WinWhenSeeFlopPct decimal(4,3),
-              WinPctWithoutSD decimal(4,3),
-              WinAtSDPct decimal(4,3),
-              ContBetPct decimal(4,3),
-              BetRiverPct decimal(4,3),
-              CallOrRaisePFRPct decimal(4,3),
-              FoldToCBetPct decimal(4,3),
-              CallCBetPct decimal(4,3),
-              RaiseCBetPct decimal(4,3),
-              FoldToFlopBetPct decimal(4,3),
-              CallFlopBetPct decimal(4,3),
-              RaiseFlopBetPct decimal(4,3),
-              NetLastHandRelSS decimal(8,2),
-              PartInLastHand tinyint(1),
-              PRIMARY KEY (ActionID)
-            ) ENGINE = MYISAM;"""
-newTempCreate = """CREATE TABLE featuresNewTemp
-            ( ActionID int NOT NULL AUTO_INCREMENT,
-              Action varchar(10),
-              sdVPIP decimal(8,4),
-              AllAggFactor decimal(8,4),
-              PreflopAggFactor decimal(8,4),
-              FlopAggFactor decimal(8,4),
-              TurnAggFactor decimal(8,4),
-              RiverAggFactor decimal(8,4),
-              PRIMARY KEY (ActionID)
-            ) ENGINE = MYISAM;"""
-newCreate = newTempCreate.replace('featuresNewTemp','featuresNew')
-mainCreate = """CREATE TABLE features
-            ( ActionID int NOT NULL AUTO_INCREMENT,
-              Action varchar(10),
-              Round varchar(10),
-              FacingBet tinyint(2),
-              AmountToCall decimal(10,2),
-              CurrentPot decimal(10,2),
-              NumPlayersStart tinyint(2),
-              NumPlayersLeft tinyint(2),
-              BigBlind decimal(4,2),
-              NumChecksGame tinyint(2),
-              LastToAct tinyint(2),
-              LastToActStack decimal(10,2),
-              FinalPotLastHandTable decimal(10,2),
-              CBisCheckRaise tinyint(1),
-              BetsRaisesGame tinyint(2),
-              BetsRaisesPF tinyint(2),
-              BetsRaisesF tinyint(2),
-              BetsRaisesT tinyint(2),
-              BetsRaisesR tinyint(2),
-              NumPairsFlop tinyint(2),
-              NumPairsTurn tinyint(2),
-              NumPairsRiver tinyint(2),
-              TwoToFlushDrawFlop tinyint(1),
-              ThreeToFlushDrawFlop tinyint(1),
-              FlushTurned tinyint(1),
-              FlushRivered tinyint(1),
-              HighCardFlop tinyint(2),
-              HighCardTurn tinyint(2),
-              HighCardRiver tinyint(2),
-              RangeFlop tinyint(2),
-              RangeTurn tinyint(2),
-              RangeRiver tinyint(2),
-              TwoToStraightDrawFlop tinyint(1),
-              TwoToStraightDrawTurn tinyint(1),
-              ThreeToStraightFlop tinyint(1),
-              ThreeOrMoreToStraightTurn tinyint(1),
-              ThreeOrMoreToStraightRiver tinyint(1),
-              TurnOverCard tinyint(1),
-              RiverOverCard tinyint(1),
-              NumFaceCardsFlop tinyint(2),
-              NumFaceCardsTurn tinyint(2),
-              NumFaceCardsRiver tinyint(2),
-              AvgCardRankFlop decimal(4,2),
-              AvgCardRankTurn decimal(4,2),
-              AvgCardRankRiver decimal(4,2),
-              TurnBrick tinyint(1),
-              RiverBrick tinyint(1),
-              MeanOtherStackRelBBRelSelf decimal(6,2),
-              SDOtherStackRelBBRelSelf decimal(6,2),
-              MaxOtherStackRelBBRelSelf decimal(6,2),
-              MinOtherStackRelBBRelSelf decimal(6,2),
-              AggressorPos tinyint(2),
-              AggInPosVsMe tinyint(1),
-              AggStack decimal(10,2),
-              IsAgg tinyint(1),
-              SeatRelDealerRelNP tinyint(2),
-              EffectiveStack decimal(10,2),
-              ESvsAgg decimal(10,2),
-              StackToPot decimal(8,2),
-              IsSB tinyint(1),
-              IsBB tinyint(1),
-              InvestedThisGame decimal(10,2),
-              LastAction varchar(10),
-              AllFoldPct decimal(4,3),
-              AllCheckPct decimal(4,3),
-              AllCallPct decimal(4,3),
-              AllBetPct decimal(4,3),
-              AllRaisePct decimal(4,3),
-              PreflopFoldPct decimal(4,3),
-              PreflopCheckPct decimal(4,3),
-              PreflopCallPct decimal(4,3),
-              PreflopBetPct decimal(4,3),
-              PreflopRaisePct decimal(4,3),
-              FlopFoldPct decimal(4,3),
-              FlopCheckPct decimal(4,3),
-              FlopCallPct decimal(4,3),
-              FlopBetPct decimal(4,3),
-              FlopRaisePct decimal(4,3),
-              TurnFoldPct decimal(4,3),
-              TurnCheckPct decimal(4,3),
-              TurnCallPct decimal(4,3),
-              TurnBetPct decimal(4,3),
-              TurnRaisePct decimal(4,3),
-              RiverFoldPct decimal(4,3),
-              RiverCheckPct decimal(4,3),
-              RiverCallPct decimal(4,3),
-              RiverBetPct decimal(4,3),
-              RiverRaisePct decimal(4,3),
-              VPIP decimal(4,3),
-              NetAtTable decimal(10,2),
-              ThreeBetPct decimal(4,3),
-              SeeSDPct decimal(4,3),
-              WinWhenSeeFlopPct decimal(4,3),
-              WinPctWithoutSD decimal(4,3),
-              WinAtSDPct decimal(4,3),
-              ContBetPct decimal(4,3),
-              BetRiverPct decimal(4,3),
-              CallOrRaisePFRPct decimal(4,3),
-              FoldToCBetPct decimal(4,3),
-              CallCBetPct decimal(4,3),
-              RaiseCBetPct decimal(4,3),
-              FoldToFlopBetPct decimal(4,3),
-              CallFlopBetPct decimal(4,3),
-              RaiseFlopBetPct decimal(4,3),
-              NetLastHandRelSS decimal(8,2),
-              PartInLastHand tinyint(1),
-              sdVPIP decimal(8,4),
-              AllAggFactor decimal(8,4),
-              PreflopAggFactor decimal(8,4),
-              FlopAggFactor decimal(8,4),
-              TurnAggFactor decimal(8,4),
-              RiverAggFactor decimal(8,4),
-              PRIMARY KEY (ActionID)
-            ) ENGINE = MYISAM;"""
+########################## CREATE TABLES IN DATABASE ##########################
+datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
+             'AggInPosVsMe': 'tinyint(1)','AggStack': 'decimal(10,2)',
+             'AggressorPos': 'tinyint(2)','AllAggFactor': 'decimal(8,4)',
+             'AllBet': 'decimal(4,3)','AllCall': 'decimal(4,3)',
+             'AllCheck': 'decimal(4,3)','AllFold': 'decimal(4,3)',
+             'AllRaise': 'decimal(4,3)','AmountToCall': 'decimal(10,2)',
+             'AvgCardRankFlop': 'decimal(4,2)','AvgCardRankRiver': 'decimal(4,2)',
+             'AvgCardRankTurn': 'decimal(4,2)','BetRiverPct': 'decimal(4,3)',
+             'BetsRaisesF': 'tinyint(2)','BetsRaisesGame': 'tinyint(2)',
+             'BetsRaisesPF': 'tinyint(2)','BetsRaisesR': 'tinyint(2)',
+             'BetsRaisesT': 'tinyint(2)','BigBlind': 'decimal(4,2)',
+             'CBisCheckRaise': 'tinyint(1)','CallCBetPct': 'decimal(4,3)',
+             'CallFlopBetPct': 'decimal(4,3)','CallOrRaisePFRPct': 'decimal(4,3)',
+             'ContBetPct': 'decimal(4,3)','CurrentPot': 'decimal(10,2)',
+             'ESvsAgg': 'decimal(10,2)','EffectiveStack': 'decimal(10,2)',
+             'FacingBet': 'tinyint(2)','FinalPotLastHandTable': 'decimal(10,2)',
+             'FlopAggFactor': 'decimal(8,4)','FlopBetPct': 'decimal(4,3)',
+             'FlopCallPct': 'decimal(4,3)','FlopCheckPct': 'decimal(4,3)',
+             'FlopFoldPct': 'decimal(4,3)','FlopRaisePct': 'decimal(4,3)',
+             'FlushRivered': 'tinyint(1)','FlushTurned': 'tinyint(1)',
+             'FoldToCBetPct': 'decimal(4,3)','FoldToFlopBetPct': 'decimal(4,3)',
+             'HighCardFlop': 'tinyint(2)','HighCardRiver': 'tinyint(2)',
+             'HighCardTurn': 'tinyint(2)','InvestedThisGame': 'decimal(10,2)',
+             'IsAgg': 'tinyint(1)','IsBB': 'tinyint(1)',
+             'IsSB': 'tinyint(1)','LastAction': 'varchar(10)',
+             'LastToAct': 'tinyint(2)','LastToActStack': 'decimal(10,2)',
+             'MaxOtherStackRelBBRelSelf': 'decimal(6,2)',
+             'MeanOtherStackRelBBRelSelf': 'decimal(6,2)',
+             'MinOtherStackRelBBRelSelf': 'decimal(6,2)',
+             'NetAtTable': 'decimal(10,2)','NetLastHandRelSS': 'decimal(8,2)',
+             'NumChecksGame': 'tinyint(2)','NumFaceCardsFlop': 'tinyint(2)',
+             'NumFaceCardsRiver': 'tinyint(2)','NumFaceCardsTurn': 'tinyint(2)',
+             'NumPairsFlop': 'tinyint(2)','NumPairsRiver': 'tinyint(2)',
+             'NumPairsTurn': 'tinyint(2)','NumPlayersLeft': 'tinyint(2)',
+             'NumPlayersStart': 'tinyint(2)','PartInLastHand': 'tinyint(1)',
+             'PreflopAggFactor': 'decimal(8,4)','PreflopBetPct': 'decimal(4,3)',
+             'PreflopCallPct': 'decimal(4,3)','PreflopCheckPct': 'decimal(4,3)',
+             'PreflopFoldPct': 'decimal(4,3)','PreflopRaisePct': 'decimal(4,3)',
+             'RaiseCBetPct': 'decimal(4,3)','RaiseFlopBetPct': 'decimal(4,3)',
+             'RangeFlop': 'tinyint(2)','RangeRiver': 'tinyint(2)',
+             'RangeTurn': 'tinyint(2)','RiverAggFactor': 'decimal(8,4)',
+             'RiverBetPct': 'decimal(4,3)','RiverBrick': 'tinyint(1)',
+             'RiverCallPct': 'decimal(4,3)','RiverCheckPct': 'decimal(4,3)',
+             'RiverFoldPct': 'decimal(4,3)','RiverOverCard': 'tinyint(1)',
+             'RiverRaisePct': 'decimal(4,3)','Round': 'varchar(10)',
+             'SDOtherStackRelBBRelSelf': 'decimal(6,2)',
+             'SeatRelDealerRelNP': 'tinyint(2)',
+             'SeeSDPct': 'decimal(4,3)','StackToPot': 'decimal(8,2)',
+             'ThreeBetPct': 'decimal(4,3)','ThreeOrMoreToStraightRiver': 'tinyint(1)',
+             'ThreeOrMoreToStraightTurn': 'tinyint(1)',
+             'ThreeToFlushDrawFlop': 'tinyint(1)',
+             'ThreeToStraightFlop': 'tinyint(1)',
+             'TurnAggFactor': 'decimal(8,4)','TurnBetPct': 'decimal(4,3)',
+             'TurnBrick': 'tinyint(1)','TurnCallPct': 'decimal(4,3)',
+             'TurnCheckPct': 'decimal(4,3)','TurnFoldPct': 'decimal(4,3)',
+             'TurnOverCard': 'tinyint(1)','TurnRaisePct': 'decimal(4,3)',
+             'TwoToFlushDrawFlop': 'tinyint(1)','TwoToStraightDrawFlop': 'tinyint(1)',
+             'TwoToStraightDrawTurn': 'tinyint(1)','VPIP': 'decimal(4,3)',
+             'WinAtSDPct': 'decimal(4,3)','WinWithoutSDPct': 'decimal(4,3)',
+             'WinWhenSeeFlopPct': 'decimal(4,3)','sdVPIP': 'decimal(8,4)'
+             }
+
+tableCols = {
+    'quickFeatures': ['ActionID', 'Action', 'Round', 'FacingBet',
+          'AmountToCall', 'CurrentPot', 'NumPlayersStart',
+          'NumPlayersLeft', 'BigBlind'],
+    'tableFeatures': ['ActionID', 'NumChecksGame', 'LastToAct', 'LastToActStack',
+          'FinalPotLastHandTable', 'CBisCheckRaise', 'BetsRaisesGame',
+          'BetsRaisesPF', 'BetsRaisesF', 'BetsRaisesT', 'BetsRaisesR',
+          'NumPairsFlop', 'NumPairsTurn', 'NumPairsRiver', 
+          'TwoToFlushDrawFlop', 'ThreeToFlushDrawFlop', 'FlushTurned', 
+          'FlushRivered', 'HighCardFlop', 'HighCardTurn', 'HighCardRiver', 
+          'RangeFlop', 'RangeTurn', 'RangeRiver', 'TwoToStraightDrawFlop',
+          'TwoToStraightDrawTurn', 'ThreeToStraightFlop', 
+          'ThreeOrMoreToStraightTurn', 'ThreeOrMoreToStraightRiver', 
+          'TurnOverCard', 'RiverOverCard', 'NumFaceCardsFlop', 
+          'NumFaceCardsTurn', 'NumFaceCardsRiver', 'AvgCardRankFlop', 
+          'AvgCardRankTurn', 'AvgCardRankRiver', 'TurnBrick', 
+          'RiverBrick', 'MeanOtherStackRelBBRelSelf', 
+          'SDOtherStackRelBBRelSelf', 'MaxOtherStackRelBBRelSelf', 
+          'MinOtherStackRelBBRelSelf', 'AggressorPos', 'AggInPosVsMe', 
+          'AggStack', 'IsAgg', 'SeatRelDealerRelNP', 'EffectiveStack', 
+          'ESvsAgg', 'StackToPot', 'IsSB', 'IsBB', 'InvestedThisGame'],
+    'columnFeaturesTemp': ['ActionID', 'Action', 'LastAction', 'AllFold', 
+          'AllCheck', 'AllCall', 'AllBet', 'AllRaise', 'PreflopFoldPct', 
+          'PreflopCheckPct', 'PreflopCallPct', 'PreflopBetPct', 'PreflopRaisePct',
+          'FlopFoldPct', 'FlopCheckPct', 'FlopCallPct', 'FlopBetPct', 'FlopRaisePct', 
+          'TurnFoldPct', 'TurnCheckPct', 'TurnCallPct', 'TurnBetPct', 'TurnRaisePct', 
+          'RiverFoldPct', 'RiverCheckPct', 'RiverCallPct', 'RiverBetPct', 
+          'RiverRaisePct', 'VPIP', 'NetAtTable', 'ThreeBetPct', 'SeeSDPct', 
+          'WinWhenSeeFlopPct', 'WinWithoutSDPct', 'WinAtSDPct', 'ContBetPct', 
+          'BetRiverPct', 'CallOrRaisePFRPct', 'FoldToCBetPct', 'CallCBetPct', 
+          'RaiseCBetPct', 'FoldToFlopBetPct', 'CallFlopBetPct', 'RaiseFlopBetPct', 
+          'NetLastHandRelSS', 'PartInLastHand'],
+    'featuresOld': ['ActionID', 'Action', 'Round', 'FacingBet', 
+          'AmountToCall', 'CurrentPot', 'NumPlayersStart', 'NumPlayersLeft', 
+          'BigBlind', 'NumChecksGame', 'LastToAct', 'LastToActStack', 
+          'FinalPotLastHandTable', 'CBisCheckRaise', 'BetsRaisesGame', 
+          'BetsRaisesPF', 'BetsRaisesF', 'BetsRaisesT', 'BetsRaisesR', 
+          'NumPairsFlop', 'NumPairsTurn', 'NumPairsRiver', 'TwoToFlushDrawFlop',
+          'ThreeToFlushDrawFlop', 'FlushTurned', 'FlushRivered', 'HighCardFlop',
+          'HighCardTurn', 'HighCardRiver', 'RangeFlop', 'RangeTurn', 'RangeRiver',
+          'TwoToStraightDrawFlop', 'TwoToStraightDrawTurn', 'ThreeToStraightFlop',
+          'ThreeOrMoreToStraightTurn', 'ThreeOrMoreToStraightRiver', 'TurnOverCard',
+          'RiverOverCard', 'NumFaceCardsFlop', 'NumFaceCardsTurn', 'NumFaceCardsRiver', 
+          'AvgCardRankFlop', 'AvgCardRankTurn', 'AvgCardRankRiver', 'TurnBrick', 
+          'RiverBrick', 'MeanOtherStackRelBBRelSelf', 'SDOtherStackRelBBRelSelf', 
+          'MaxOtherStackRelBBRelSelf', 'MinOtherStackRelBBRelSelf', 'AggressorPos', 
+          'AggInPosVsMe', 'AggStack', 'IsAgg', 'SeatRelDealerRelNP', 'EffectiveStack', 
+          'ESvsAgg', 'StackToPot', 'IsSB', 'IsBB', 'InvestedThisGame', 'LastAction', 
+          'AllFold', 'AllCheck', 'AllCall', 'AllBet', 'AllRaise', 'PreflopFoldPct', 
+          'PreflopCheckPct', 'PreflopCallPct', 'PreflopBetPct', 'PreflopRaisePct',
+          'FlopFoldPct', 'FlopCheckPct', 'FlopCallPct', 'FlopBetPct', 'FlopRaisePct',
+          'TurnFoldPct', 'TurnCheckPct', 'TurnCallPct', 'TurnBetPct', 'TurnRaisePct',
+          'RiverFoldPct', 'RiverCheckPct', 'RiverCallPct', 'RiverBetPct',
+          'RiverRaisePct', 'VPIP', 'NetAtTable', 'ThreeBetPct', 'SeeSDPct', 
+          'WinWhenSeeFlopPct','WinWithoutSDPct', 'WinAtSDPct', 'ContBetPct',
+          'BetRiverPct', 'CallOrRaisePFRPct', 'FoldToCBetPct', 'CallCBetPct', 
+          'RaiseCBetPct', 'FoldToFlopBetPct', 'CallFlopBetPct', 'RaiseFlopBetPct',
+          'NetLastHandRelSS','PartInLastHand'],
+    'featuresNew': ['ActionID', 'Action', 'sdVPIP', 'AllAggFactor',
+          'PreflopAggFactor', 'FlopAggFactor', 'TurnAggFactor', 'RiverAggFactor']}
+tableCols['columnFeatures'] = list(tableCols['columnFeaturesTemp'])
+tableCols['columnFeatures'].remove('Action')
+tableCols['features'] = tableCols['featuresOld'] + tableCols['featuresNew'][2:]
+
+def createTable(tableName, pk = True):
+    cols = tableCols[tableName]
+    q = """CREATE TABLE {}
+    ( {}
+    ) ENGINE = MYISAM;"""
+    colStrings = '\n'.join('{} {},'.format(c,datatypes[c]) for c in cols)
+    colStrings = colStrings[:-1] # remove trailing comma
+    if pk:
+        colStrings += ',\n PRIMARY KEY (ActionID)'
+    finalQ = q.format(tableName, colStrings)
+    cur.execute(finalQ)
+    return finalQ
 
 startTime = datetime.now()
-creations = [quickCreate,tableCreate,columnCreate,columnTempCreate,
-             oldCreate,newCreate,newTempCreate,mainCreate]
-for q in creations:
-    cur.execute(q)
+
+for t in tableCols:
+    createTable(t)
 
 print "Checkpoint, tables created:", datetime.now()-startTime
-
-# get cols in order from creation queries
-tableCols = {}
-for t,q in zip(tables+['columntemp','old','new','newtemp','main'],creations):
-    cols = [f.strip()[:-1] for f in q.split('\n')][2:-2]
-    tableCols[t] = [f[:f.find(' ')] for f in cols]
 
 ######################## POPULATE QUICK FEATURES ##############################
 cur.execute("""INSERT INTO quickFeatures
@@ -502,7 +231,6 @@ with open('LastAction.txt','ab') as outF:
     pla = None
 print "Checkpoint, first column feature done:", datetime.now()-startTime
 ############################################
-# TODO: fix "ALL" columns, because they're giving pct's that are >1.0
 # players' actions by round as percentages
 ## GET
 cur.execute('SELECT Player,Action,Round FROM actions;')
@@ -554,7 +282,8 @@ for i,p,a in cur:
         colsToBeWritten[a][r] = []
 for a in actions:
     for r in rounds:
-        f = open('{}{}Pct.txt'.format(r,a[:1].upper()+a[1:]),'ab')
+        f = open('{}{}{}.txt'.format(
+                r,a[:1].upper()+a[1:], 'Pct'*(r!='All')),'ab')
         f.write('\n'.join(toStrings(colsToBeWritten[a][r])))
         f.close()
 colsToBeWritten,playerActionsByRound = [None,None]
@@ -1036,7 +765,7 @@ print "Checkpoint, all column features done:", datetime.now()-startTime
 # text to CSV
 os.chdir('../column')
 os.system('paste -d, {} > features.csv'.format(
-        ' '.join('{}.txt'.format(fName) for fName in tableCols['column'])))
+        ' '.join('{}.txt'.format(fName) for fName in tableCols['columnFeatures'])))
 
 #import CSV to columnFeatures (temp table->remove blinds->real table)
 cur.execute("""LOAD DATA INFILE '{}/features.csv'
@@ -1044,12 +773,12 @@ cur.execute("""LOAD DATA INFILE '{}/features.csv'
                 FIELDS TERMINATED BY ','
                 OPTIONALLY ENCLOSED BY '"'
                 LINES TERMINATED BY '\\n'
-                ({});""".format(os.getcwd(), ','.join(tableCols['column'])))
+                ({});""".format(os.getcwd(), ','.join(tableCols['columnFeaturesTemp'])))
 cur.execute("""INSERT INTO columnFeatures
             SELECT {}
-            FROM columnFeaturesTemp
-            WHERE Action!="blind" AND Action!="deadblind"
-            ;""".format(','.join(tableCols['column'])))
+            FROM columnFeaturesTemp AS t
+            WHERE t.Action!="blind" AND t.Action!="deadblind"
+            ;""".format(','.join(tableCols['columnFeatures'])))
 cur.execute('DROP TABLE columnFeaturesTemp;')
 print "Checkpoint, columnFeatures table populated:", datetime.now()-startTime
 ################## MERGE TABLES TO FEATURESOLD, DELETE ########################
@@ -1111,7 +840,7 @@ getAF('River')
 print "Checkpoint, new features created:", datetime.now()-startTime
 #################### NEW TXT TO CSV, CSV IMPORT ###############################
 os.system('paste -d, {} > ../features.csv'.format(
-        ' '.join('{}.txt'.format(fName) for fName in tableCols['new'])))
+        ' '.join('{}.txt'.format(fName) for fName in tableCols['featuresNew'])))
 
 # import new features to table
 cur.execute("""LOAD DATA INFILE '{}/features.csv'
@@ -1119,12 +848,12 @@ cur.execute("""LOAD DATA INFILE '{}/features.csv'
                 FIELDS TERMINATED BY ','
                 OPTIONALLY ENCLOSED BY '"'
                 LINES TERMINATED BY '\\n'
-                ({});""".format(os.getcwd(), ','.join(tableCols['new'])))
+                ({});""".format(os.getcwd(), ','.join(tableCols['featuresNew'])))
 cur.execute("""INSERT INTO featuresNew
             SELECT {}
             FROM featuresNewTemp
             WHERE Action!="blind" AND Action!="deadblind"
-            ;""".format(','.join(tableCols['new'])))
+            ;""".format(','.join(tableCols['featuresNew'])))
 cur.execute('DROP TABLE newFeaturesTemp;')
 print "Checkpoint, newFeatures populated:", datetime.now()-startTime
 ################## MERGE OLD AND NEW TO FEATURES, DELETE ######################
