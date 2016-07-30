@@ -56,7 +56,7 @@ datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
              'AvgCardRankFlop': 'decimal(4,2)','AvgCardRankRiver': 'decimal(4,2)',
              'AvgCardRankTurn': 'decimal(4,2)','BetRiverPct': 'decimal(4,3)',
              'BetsRaisesF': 'tinyint(2)','BetsRaisesGame': 'tinyint(2)',
-             'BetsRaisesPF': 'tinyint(2)','BetsRaisesR': 'tinyint(2)',
+             'BetsRaisesP': 'tinyint(2)','BetsRaisesR': 'tinyint(2)',
              'BetsRaisesT': 'tinyint(2)','BigBlind': 'decimal(4,2)',
              'CBisCheckRaise': 'tinyint(1)','CallCBetPct': 'decimal(4,3)',
              'CallFlopBetPct': 'decimal(4,3)','CallOrRaisePFRPct': 'decimal(4,3)',
@@ -115,7 +115,7 @@ tableCols = {
           'NumPlayersLeft', 'BigBlind'],
     'tableFeatures': ['ActionID', 'NumChecksGame', 'LastToAct', 'LastToActStack',
           'FinalPotLastHandTable', 'CBisCheckRaise', 'BetsRaisesGame',
-          'BetsRaisesPF', 'BetsRaisesF', 'BetsRaisesT', 'BetsRaisesR',
+          'BetsRaisesP', 'BetsRaisesF', 'BetsRaisesT', 'BetsRaisesR',
           'NumPairsFlop', 'NumPairsTurn', 'NumPairsRiver', 
           'TwoToFlushDrawFlop', 'ThreeToFlushDrawFlop', 'FlushTurned', 
           'FlushRivered', 'HighCardFlop', 'HighCardTurn', 'HighCardRiver', 
@@ -145,7 +145,7 @@ tableCols = {
           'AmountToCall', 'CurrentPot', 'NumPlayersStart', 'NumPlayersLeft', 
           'BigBlind', 'NumChecksGame', 'LastToAct', 'LastToActStack', 
           'FinalPotLastHandTable', 'CBisCheckRaise', 'BetsRaisesGame', 
-          'BetsRaisesPF', 'BetsRaisesF', 'BetsRaisesT', 'BetsRaisesR', 
+          'BetsRaisesP', 'BetsRaisesF', 'BetsRaisesT', 'BetsRaisesR', 
           'NumPairsFlop', 'NumPairsTurn', 'NumPairsRiver', 'TwoToFlushDrawFlop',
           'ThreeToFlushDrawFlop', 'FlushTurned', 'FlushRivered', 'HighCardFlop',
           'HighCardTurn', 'HighCardRiver', 'RangeFlop', 'RangeTurn', 'RangeRiver',
@@ -206,9 +206,303 @@ cur.execute("""INSERT INTO quickFeatures
             WHERE (Action!="blind") AND (Action!="deadblind");""")
 print "Checkpoint, quickFeatures populated:", datetime.now()-startTime
 ######################## POPULATE TABLE FEATURES ##############################
+os.chdir('features/table')
+#### VECTORIZED FEATURES ####
+# needed columns: GameNum,Player,Action
+cols = ['GameNum','Player','Action']
+cur.execute('SELECT {} FROM actions;'.format(','.join(cols)))
+poker = []
+gamesInChunk = set()
 
+# write new columns to txt files
+def getCols(poker):
+    # initialize
+    newCols = {}
+    poker = pd.DataFrame(poker, columns=cols)
+    pokerWOB = poker.ix[~(poker.Action.isin(['deadblind','blind']))]
+    
+    # vectorized columns
+    pokerWOB['PrevAction'] = poker.groupby(['GameNum','Player']).Action.shift(1).ix[pokerWOB.index].fillna('None')
+    newCols['CBisCheckRaise'] = (pokerWOB.PrevAction=='check') & (pokerWOB.Action=='raise')
+    
+    pokerWOB['BetOrRaise'] = pokerWOB.Action.isin(['bet','raise'])
+    newCols['BetsRaisesGame'] = pokerWOB.groupby('GameNum').BetOrRaise.cumsum()
+    
+    agg = poker.Action.isin(['deadblind','blind','bet','raise']).astype(bool)
+    pokerWOB['AggressorPos'] = (poker.SeatRelDealer*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
+    newCols['AggressorPos'] = pokerWOB.AggressorPos
+    newCols['AggInPosVsMe'] = pokerWOB.AggressorPos < pokerWOB.SeatRelDealer
+    newCols['AggStack'] = (poker.CurrentStack*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
+    
+    # total bets and raises for each round
+    # (not vectorized, but convenient to calculate here)
+    for r in ['PF','F','R','T']:
+        newCols['BetsRaises{}'.format(r)] = []
+    relevantCols = ['GameNum','Round','BetOrRaise']
+    brDF = zip(*[pokerWOB[c] for c in relevantCols])
+    rounds = ['Preflop','Flop','Turn','River']
+    newBRCols = {r:[] for r in rounds}
+    counts = {r:0 for r in rounds}
+    for i,(g,r,bor) in enumerate(brDF):
+        if g!=brDF[i-1][0]:
+            counts = {r:0 for r in rounds}
+        for rd in rounds:
+            newBRCols[rd].append(counts[rd])
+            if r==rd: counts[r] += bor
+    for rd in rounds:
+        newCols['BetsRaises{}'.format(rd[0])] = newBRCols[rd]
+    
+    # write columns to text
+    for c,v in newCols.iteritems():
+        with open('{}.txt'.format(c),'ab') as f:
+            f.write('\n'.join(v) + '\n')
+
+# populate chunk; call getCols on chunk; empty chunk; repeat
+for row in cur:
+    poker.append(row)
+    gamesInChunk.add(row[0])
+    if len(gamesInChunk) % 69768 == 0:
+        getCols(poker)
+        poker = []
+        gamesInChunk = set()
+getCols(poker)
+del poker,gamesInChunk
+
+
+#### LOOPING FEATURES ####
+cols =  ['GameNum','Round','SeatRelDealer','Action','CurrentStack',
+         'TableName','CurrentPot']
+cur.execute("""SELECT {}
+            FROM actions AS a
+            INNER JOIN games AS g
+            ON a.GameNum=g.GameNum;""".format('a.'+','.join(cols)))
+poker = []
+gamesInChunk = set()
+
+def getCols(poker):
+    # initialize
+    newCols = {}
+    poker = pd.DataFrame(poker, columns=cols)
+    pokerWOB = poker.ix[~(poker.Action.isin(['blind','deadblind']))]
+    
+    # last to act
+    relevantCols = ['GameNum','Round','SeatRelDealer','Action']
+    ltaDF = zip(*[poker[c] for c in relevantCols])
+    LTAbyRow = []
+    m = len(ltaDF)
+    for i,(gameNum,rd,seat,action) in enumerate(ltaDF):
+        ap = []
+        windowStart = i
+        windowEnd = i
+        while windowStart>=0 and ltaDF[windowStart][:2]==(gameNum,rd):
+            if ltaDF[windowStart][3]!='fold':
+                ap.append(ltaDF[windowStart][2])
+            windowStart -= 1
+        while windowEnd<m and ltaDF[windowEnd][:2]==(gameNum,rd):
+            ap.append(ltaDF[windowEnd][2])
+            windowEnd += 1
+        LTAbyRow.append(min(ap))
+    newCols['LastToAct'] = [LTAbyRow[i] for i in pokerWOB.index]
+    del LTAbyRow
+    gc.collect()
+
+    # last to act stack
+    ltasDF = zip(pokerWOB.GameNum, pokerWOB.CurrentStack, pokerWOB.SeatRelDealer, newCols.LastToAct)
+    LTASbyRow = []
+    m = len(ltasDF)
+    for i,(gameNum,stack,seat,lta) in enumerate(ltasDF):
+        s = 0
+        windowStart = i
+        windowEnd = i
+        while windowStart>=0 and ltasDF[windowStart][0]==gameNum:
+            r = ltasDF[windowStart]
+            if r[3]==r[2]:
+                s = r[1]
+                break
+            windowStart -= 1
+        if s==0:
+            while windowEnd<m and ltasDF[windowEnd][0]==gameNum:
+                r = ltasDF[windowEnd]
+                if r[3]==r[2]:
+                    s = r[1]
+                    break
+                windowEnd += 1
+        LTASbyRow.append(s)
+    newCols['LastToActStack'] = LTASbyRow
+    del LTASbyRow
+    gc.collect()
+
+    # final pot of last hand at table
+    relevantCols = ['GameNum','Table','CurrentPot']
+    tlhpDF = zip(*[pokerWOB[c] for c in relevantCols])
+    TLHPbyRow = []
+    tableLastHandPot = {}
+    for i,(gameNum,table,cp) in enumerate(tlhpDF):
+        if not table in tableLastHandPot:
+            tableLastHandPot[table] = -1
+        TLHPbyRow.append(tableLastHandPot[table])
+        if (i+1)<len(tlhpDF) and gameNum!=tlhpDF[i+1][0]:
+            tableLastHandPot[table] = cp
+    newCols['FinalPotLastHandTable'] = TLHPbyRow
+    del TLHPbyRow
+    gc.collect()
+
+    # write columns to text
+    for c,v in newCols.iteritems():
+        with open('{}.txt'.format(c),'ab') as f:
+            f.write('\n'.join(v) + '\n')
+
+# populate chunk; call getCols on chunk; empty chunk; repeat
+for row in cur:
+    poker.append(row)
+    gamesInChunk.add(row[0])
+    if len(gamesInChunk) % 69768 == 0:
+        getCols(poker)
+        poker = []
+        gamesInChunk = set()
+
+#### BOARD FEATURES ####
+cols = ['Board{}'.format(i) for i in range(1,6)]
+cur.execute("""SELECT {} FROM actions
+                INNER JOIN boards
+                ON actions.GameNum=boards.GameNum;""".format(','.join(cols)))
+poker = []
+gamesInChunk = set()
+
+def getCols(poker):
+    # initialize
+    newCols = {}
+    poker = pd.DataFrame(poker, columns=cols)
+    pokerWOB = poker.ix[~(poker.Action.isin(['deadblind','blind']))]
+    boardDF = pokerWOB[cols]
+    boardSuits = boardDF%4
+    boardRanks = boardDF%13
+    
+    # build DFs of rank counts and suit counts (nrow*13 and nrow*4 dims)
+    rankCountsFlop, rankCountsTurn, rankCountsRiver = [{},{},{}]
+    for r in xrange(13):
+        rankCountsFlop[r] = list((boardRanks.ix[:,:2]==r).sum(axis=1))
+        rankCountsTurn[r] = list((boardRanks.ix[:,:3]==r).sum(axis=1))
+        rankCountsRiver[r] = list((boardRanks==r).sum(axis=1))
+    rankCountsFlop = pd.DataFrame(rankCountsFlop)
+    rankCountsTurn = pd.DataFrame(rankCountsTurn)
+    rankCountsRiver = pd.DataFrame(rankCountsRiver)
+    
+    suitCountsFlop, suitCountsTurn, suitCountsRiver = [{},{},{}]
+    for r in xrange(13):
+        suitCountsFlop[r] = list((boardSuits.ix[:,:2]==r).sum(axis=1))
+        suitCountsTurn[r] = list((boardSuits.ix[:,:3]==r).sum(axis=1))
+        suitCountsRiver[r] = list((boardSuits==r).sum(axis=1))
+    suitCountsFlop = pd.DataFrame(suitCountsFlop)
+    suitCountsTurn = pd.DataFrame(suitCountsTurn)
+    suitCountsRiver = pd.DataFrame(suitCountsRiver)
+    
+    # Number of pairs on the board
+    newCols['NumPairsFlop'] = (rankCountsFlop==2).sum(axis=1)
+    newCols['NumPairsTurn'] = (rankCountsTurn==2).sum(axis=1)
+    newCols['NumPairsRiver'] = (rankCountsRiver==2).sum(axis=1)
+    
+    # Flush draw on the flop (2 to a suit, not 3)
+    newCols['TwoToFlushDrawFlop'] = (suitCountsFlop==2).sum(axis=1)>0
+    
+    # Flush draw on the flop (3 to a suit)
+    newCols['ThreeToFlushDrawFlop'] = (suitCountsFlop==3).sum(axis=1)>0
+    
+    # Flush draw on the turn (still 2 to a suit, not 3)
+    newCols['TwoToFlushDrawTurn'] = (suitCountsTurn==2).sum(axis=1)>0
+    
+    # Flush draw connects on the turn (from 2 to 3)
+    newCols['FlushTurned'] = (newCols.TwoToFlushDrawFlop) & \
+                            ((suitCountsTurn==3).sum(axis=1)>0)
+                            
+    # Flush draw connects on the river (from 2 to 3)
+    newCols['FlushRivered'] = (newCols.TwoToFlushDrawTurn) & \
+                            ((suitCountsRiver==3).sum(axis=1)>0)
+    
+    # High card on each street
+    newCols['HighCardFlop'] = boardRanks.ix[:,:2].max(axis=1)
+    newCols['HighCardTurn'] = boardRanks.ix[:,:3].max(axis=1)
+    newCols['HighCardRiver'] = boardRanks.max(axis=1)
+    
+    # Range of cards on each street
+    newCols['RangeFlop'] = newCols.HighCardFlop - boardRanks.ix[:,:2].min(axis=1)
+    newCols['RangeTurn'] = newCols.HighCardTurn - boardRanks.ix[:,:3].min(axis=1)
+    newCols['RangeRiver'] = newCols.HighCardRiver - boardRanks.min(axis=1)
+    
+    # build DF of card ranks differences (1-2, 1-3, ..., 4-5) for straight draw finding
+    diffs = {}
+    for a,b in product(range(5), range(5)):
+        if a!=b:
+            k = '-'.join([str(a+1),str(b+1)])
+            if not k in diffs:
+                diffs[k] = []
+            diffs[k].append(list(abs(boardRanks.ix[:,a] - boardRanks.ix[:,b]))[0])
+    diffs = pd.DataFrame(diffs)
+    
+    # 2 to a straight draw on each flop, turn
+    diffsFlop = diffs[[c for c in diffs.columns
+                        if not ('3' in c or '4' in c)]]
+    newCols['TwoToStraightDrawFlop'] = ((diffsFlop==1).sum(axis=1))>=1 
+    
+    diffsTurn = diffs[[c for c in diffs.columns if not '4' in c]]
+    newCols['TwoToStraightDrawTurn'] = ((diffsTurn==1).sum(axis=1))>=1
+    
+    # 3+ to a straight on flop
+    newCols['ThreeToStraightFlop'] = newCols.RangeFlop==2
+    
+    # 3+ to a straight on turn
+    comboRanges = []
+    for cards in combinations(range(4),3):
+        c = boardRanks.ix[:,cards]
+        comboRanges.append((c.max(axis=1) - c.min(axis=1) == 2) & (c.notnull().sum(axis=1)==3))
+    newCols['ThreeOrMoreToStraightTurn'] = pd.DataFrame(comboRanges).sum()>0
+    
+    # 3+ to a straight on river
+    comboRanges = []
+    for cards in combinations(range(5),3):
+        c = boardRanks.ix[:,cards]
+        comboRanges.append((c.max(axis=1) - c.min(axis=1) == 2) & (c.notnull().sum(axis=1)==3))
+    newCols['ThreeOrMoreToStraightRiver'] = pd.DataFrame(comboRanges).sum()>0
+    
+    # turn is over card (greater than max(flop))
+    newCols['TurnOverCard'] = boardRanks['Board4'] > boardRanks.ix[:,:3].max(axis=1)
+    
+    # river is over card (greater than max(flop+turn))
+    newCols['RiverOverCard'] = boardRanks['Board5'] > boardRanks.ix[:,:4].max(axis=1)
+    
+    # num face cards each street
+    newCols['NumFaceCardsFlop'] = (boardRanks.ix[:,:3]>=9).sum(axis=1)
+    newCols['NumFaceCardsTurn'] = (boardRanks.ix[:,:4]>=9).sum(axis=1)
+    newCols['NumFaceCardsRiver'] = (boardRanks>=9).sum(axis=1)
+    
+    # average card rank
+    newCols['AvgCardRankFlop'] = (boardRanks.ix[:,:3]).mean(axis=1)
+    newCols['AvgCardRankTurn'] = (boardRanks.ix[:,:4]).mean(axis=1)
+    newCols['AvgCardRankRiver'] = boardRanks.mean(axis=1)
+    
+    # turn is a brick (5 or less and not pair and not making a flush)
+    newCols['TurnBrick'] = (boardRanks.Board4<=5) & (newCols.NumPairsFlop==newCols.NumPairsTurn) & (~newCols.FlushTurned)
+    
+    # river is a brick (5 or less and not pair and not making a flush)
+    newCols['RiverBrick'] = (boardRanks.Board5<=5) & (newCols.NumPairsTurn==newCols.NumPairsRiver) & (~newCols.FlushRivered)
+    
+    # write to text files
+    for c,v in newCols.iteritems():
+        with open('{}.txt'.format(c),'ab') as f:
+            f.write('\n'.join(v) + '\n')
+            
+# populate chunk; call getCols on chunk; empty chunk; repeat
+for row in cur:
+    poker.append(row)
+    gamesInChunk.add(row[0])
+    if len(gamesInChunk) % 69768 == 0:
+        getCols(poker)
+        poker = []
+        gamesInChunk = set()
+
+print "Checkpoint, all table features done:", datetime.now()-startTime
 ######################## POPULATE COLUMN FEATURES #############################
-os.chdir('features/column')
+os.chdir('../features/column')
 # list of possible actions, for reference in multiple columns
 actionsWB = ['deadblind','blind','fold','check','call','bet','raise']
 actions = actionsWB[2:]
