@@ -1519,7 +1519,7 @@ fields = {'games': ['GameNum','Source','Date','Time','SmallBlind','BigBlind','Ta
                       'RoundActionNum','StartStack','CurrentStack','Amount',
                       'AllIn','CurrentBet','CurrentPot','InvestedThisRound',
                       'NumPlayersLeft','Winnings','HoleCard1','HoleCard2'],
-          'boards': ['GameNum','Round','LenBoard'] + ['Board'+str(i) for i in range(1,6)]}
+          'boards': ['GameNum','LenBoard'] + ['Board'+str(i) for i in range(1,6)]}
 allFields = list(set(c for l in fields.values() for c in l))
 # +1 on fieldInds because in bash fields are indexed starting at 1
 fieldInds = {k: [allFields.index(c)+1 for c in v] for k,v in fields.iteritems()}
@@ -1600,6 +1600,11 @@ os.chdir('DatabaseCSVs')
 os.system('sort -u boards.csv -o boards.csv')
 os.system('sort -u games.csv -o games.csv')
 
+# sort boards by game then round
+os.system('sort -t, -k 1,1d -k 3,3n boards.csv > boards2.csv')
+os.remove('boards.csv')
+os.rename('boards2.csv','boards.csv')
+
 # write headers to top of files, then write all data back
 for k,v in fields.iteritems():
     with open('{}2.csv'.format(k),'w') as f:
@@ -1627,9 +1632,8 @@ cursor.execute('CREATE DATABASE poker;')
 cursor.execute('USE poker;')
 
 # queries to create tables
-createBoardsQuery = """create table boards
+createBoardsTempQuery = """create table boardsTemp
                     ( GameNum varchar(36),
-                      Round varchar(7),
                       LenBoard smallint(2),
                       Board1 smallint(2),
                       Board2 smallint(2),
@@ -1638,6 +1642,17 @@ createBoardsQuery = """create table boards
                       Board5 smallint(2),
                       BoardID int NOT NULL AUTO_INCREMENT,
                       PRIMARY KEY (BoardID)
+                    ) ENGINE = MYISAM;"""
+
+createBoardsQuery = """create table boards
+                    ( GameNum varchar(36),
+                      LenBoard smallint(2),
+                      Board1 smallint(2),
+                      Board2 smallint(2),
+                      Board3 smallint(2),
+                      Board4 smallint(2),
+                      Board5 smallint(2),
+                      PRIMARY KEY (GameNum)
                     ) ENGINE = MYISAM;"""
 
 createActionsQuery = """create table actions
@@ -1682,7 +1697,9 @@ createGamesQuery = """create table games
                       PRIMARY KEY (GameNum)
                     ) ENGINE = MYISAM;"""
                     
-for q in [createGamesQuery,createBoardsQuery,createActionsQuery]: cursor.execute(q)
+queries = [createGamesQuery,createBoardsTempQuery,
+           createBoardsQuery,createActionsQuery]
+for q in queries: cursor.execute(q)
 
 # query to add CSV data to tables
 importQuery = """LOAD DATA LOCAL INFILE '{}'
@@ -1697,11 +1714,24 @@ importQuery = """LOAD DATA LOCAL INFILE '{}'
 for f in sorted(os.listdir(os.getcwd()))[::-1]:
     table = f[:-4]
     try:
-        cursor.execute(importQuery.format(f, table, ','.join(fields[table])))
+        if table=='boards':
+            cursor.execute(importQuery.format(f,table+'Temp',','.join(fields[table])))
+        else:
+            cursor.execute(importQuery.format(f, table, ','.join(fields[table])))
         db.commit()
     except Exception:
         db.rollback()
         
+# remove rows with boards before last board of game
+cursor.execute("""INSERT INTO boards
+            SELECT GameNum,LenBoard,Board1,Board2,Board3,Board4,Board5
+            FROM boardsTemp
+            WHERE BoardID IN (SELECT MAX(BoardID)
+                                FROM boardsTemp
+                                GROUP BY GameNum)
+            ;""")
+cursor.execute('DROP TABLE boardsTemp;')
+
 # add helper columns to actions
 for a in ['fold','check','call','bet','raise']:
     try:
