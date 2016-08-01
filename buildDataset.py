@@ -209,17 +209,21 @@ print "Checkpoint, quickFeatures populated:", datetime.now()-startTime
 os.chdir('features/table')
 #### VECTORIZED FEATURES ####
 # needed columns: GameNum,Player,Action
-cols = ['GameNum','Player','Action']
-cur.execute('SELECT {} FROM actions;'.format(','.join(cols)))
+cols = ['GameNum','Player','Action','Round','SeatRelDealer','CurrentStack']
+cur.execute("""SELECT a.{} FROM actions AS a
+            INNER JOIN games AS g
+            ON a.GameNum=g.GameNum;""".format(','.join(cols)))
 poker = []
 gamesInChunk = set()
 
+newCols = {}
 # write new columns to txt files
 def getCols(poker):
     # initialize
-    newCols = {}
+    global newCols
+    #newCols = {}
     poker = pd.DataFrame(poker, columns=cols)
-    pokerWOB = poker.ix[~(poker.Action.isin(['deadblind','blind']))]
+    pokerWOB = pd.DataFrame(poker.ix[~(poker.Action.isin(['deadblind','blind']))])
     
     # vectorized columns
     pokerWOB['PrevAction'] = poker.groupby(['GameNum','Player']).Action.shift(1).ix[pokerWOB.index].fillna('None')
@@ -236,7 +240,7 @@ def getCols(poker):
     
     # total bets and raises for each round
     # (not vectorized, but convenient to calculate here)
-    for r in ['PF','F','R','T']:
+    for r in ['P','F','R','T']:
         newCols['BetsRaises{}'.format(r)] = []
     relevantCols = ['GameNum','Round','BetOrRaise']
     brDF = zip(*[pokerWOB[c] for c in relevantCols])
@@ -255,7 +259,7 @@ def getCols(poker):
     # write columns to text
     for c,v in newCols.iteritems():
         with open('{}.txt'.format(c),'ab') as f:
-            f.write('\n'.join(v) + '\n')
+            f.write('\n'.join(toStrings(v)) + '\n')
 
 # populate chunk; call getCols on chunk; empty chunk; repeat
 for row in cur:
@@ -268,6 +272,7 @@ for row in cur:
 getCols(poker)
 del poker,gamesInChunk
 
+print "Checkpoint, all vectorized features done:", datetime.now()-startTime
 
 #### LOOPING FEATURES ####
 cols =  ['GameNum','Round','SeatRelDealer','Action','CurrentStack',
@@ -307,7 +312,8 @@ def getCols(poker):
     gc.collect()
 
     # last to act stack
-    ltasDF = zip(pokerWOB.GameNum, pokerWOB.CurrentStack, pokerWOB.SeatRelDealer, newCols.LastToAct)
+    ltasDF = zip(pokerWOB.GameNum, pokerWOB.CurrentStack, 
+                 pokerWOB.SeatRelDealer, newCols['LastToAct'])
     LTASbyRow = []
     m = len(ltasDF)
     for i,(gameNum,stack,seat,lta) in enumerate(ltasDF):
@@ -333,7 +339,7 @@ def getCols(poker):
     gc.collect()
 
     # final pot of last hand at table
-    relevantCols = ['GameNum','Table','CurrentPot']
+    relevantCols = ['GameNum','TableName','CurrentPot']
     tlhpDF = zip(*[pokerWOB[c] for c in relevantCols])
     TLHPbyRow = []
     tableLastHandPot = {}
@@ -350,22 +356,28 @@ def getCols(poker):
     # write columns to text
     for c,v in newCols.iteritems():
         with open('{}.txt'.format(c),'ab') as f:
-            f.write('\n'.join(v) + '\n')
+            f.write('\n'.join(toStrings(v)) + '\n')
 
 # populate chunk; call getCols on chunk; empty chunk; repeat
 for row in cur:
     poker.append(row)
     gamesInChunk.add(row[0])
     if len(gamesInChunk) % 69768 == 0:
+        print len(gamesInChunk)
         getCols(poker)
         poker = []
         gamesInChunk = set()
+getCols(poker)
+del poker,gamesInChunk
+
+print "Checkpoint, all looping features done:", datetime.now()-startTime
 
 #### BOARD FEATURES ####
-cols = ['Board{}'.format(i) for i in range(1,6)]
-cur.execute("""SELECT {} FROM actions
-                INNER JOIN boards
-                ON actions.GameNum=boards.GameNum;""".format(','.join(cols)))
+cols = ['Board{}'.format(i) for i in range(1,6)] + ['Action']
+colsSQL = ['.'.join([a,b]) for a,b in zip(['b']*5+['a'], cols)]
+cur.execute("""SELECT {} FROM actions AS a
+                INNER JOIN boards AS b
+                ON a.GameNum=b.GameNum;""".format(','.join(cols)))
 poker = []
 gamesInChunk = set()
 
@@ -374,7 +386,7 @@ def getCols(poker):
     newCols = {}
     poker = pd.DataFrame(poker, columns=cols)
     pokerWOB = poker.ix[~(poker.Action.isin(['deadblind','blind']))]
-    boardDF = pokerWOB[cols]
+    boardDF = pokerWOB[cols[:-1]]
     boardSuits = boardDF%4
     boardRanks = boardDF%13
     
@@ -412,11 +424,11 @@ def getCols(poker):
     newCols['TwoToFlushDrawTurn'] = (suitCountsTurn==2).sum(axis=1)>0
     
     # Flush draw connects on the turn (from 2 to 3)
-    newCols['FlushTurned'] = (newCols.TwoToFlushDrawFlop) & \
+    newCols['FlushTurned'] = (pd.Series(newCols['TwoToFlushDrawFlop'])) & \
                             ((suitCountsTurn==3).sum(axis=1)>0)
                             
     # Flush draw connects on the river (from 2 to 3)
-    newCols['FlushRivered'] = (newCols.TwoToFlushDrawTurn) & \
+    newCols['FlushRivered'] = (pd.Series(newCols['TwoToFlushDrawTurn'])) & \
                             ((suitCountsRiver==3).sum(axis=1)>0)
     
     # High card on each street
@@ -425,9 +437,9 @@ def getCols(poker):
     newCols['HighCardRiver'] = boardRanks.max(axis=1)
     
     # Range of cards on each street
-    newCols['RangeFlop'] = newCols.HighCardFlop - boardRanks.ix[:,:2].min(axis=1)
-    newCols['RangeTurn'] = newCols.HighCardTurn - boardRanks.ix[:,:3].min(axis=1)
-    newCols['RangeRiver'] = newCols.HighCardRiver - boardRanks.min(axis=1)
+    newCols['RangeFlop'] = pd.Series(newCols['HighCardFlop']) - boardRanks.ix[:,:2].min(axis=1)
+    newCols['RangeTurn'] = pd.Series(newCols['HighCardTurn']) - boardRanks.ix[:,:3].min(axis=1)
+    newCols['RangeRiver'] = pd.Series(newCols['HighCardRiver']) - boardRanks.min(axis=1)
     
     # build DF of card ranks differences (1-2, 1-3, ..., 4-5) for straight draw finding
     diffs = {}
@@ -448,7 +460,7 @@ def getCols(poker):
     newCols['TwoToStraightDrawTurn'] = ((diffsTurn==1).sum(axis=1))>=1
     
     # 3+ to a straight on flop
-    newCols['ThreeToStraightFlop'] = newCols.RangeFlop==2
+    newCols['ThreeToStraightFlop'] = pd.Series(newCols['RangeFlop'])==2
     
     # 3+ to a straight on turn
     comboRanges = []
@@ -481,15 +493,15 @@ def getCols(poker):
     newCols['AvgCardRankRiver'] = boardRanks.mean(axis=1)
     
     # turn is a brick (5 or less and not pair and not making a flush)
-    newCols['TurnBrick'] = (boardRanks.Board4<=5) & (newCols.NumPairsFlop==newCols.NumPairsTurn) & (~newCols.FlushTurned)
+    newCols['TurnBrick'] = (boardRanks.Board4<=5) & (pd.Series(newCols['NumPairsFlop'])==pd.Series(newCols['NumPairsTurn'])) & (~pd.Series(newCols['FlushTurned']))
     
     # river is a brick (5 or less and not pair and not making a flush)
-    newCols['RiverBrick'] = (boardRanks.Board5<=5) & (newCols.NumPairsTurn==newCols.NumPairsRiver) & (~newCols.FlushRivered)
+    newCols['RiverBrick'] = (boardRanks.Board5<=5) & (pd.Series(newCols['NumPairsTurn'])==pd.Series(newCols['NumPairsRiver'])) & (~pd.Series(newCols['FlushRivered']))
     
     # write to text files
     for c,v in newCols.iteritems():
         with open('{}.txt'.format(c),'ab') as f:
-            f.write('\n'.join(v) + '\n')
+            f.write('\n'.join(toStrings(v)) + '\n')
             
 # populate chunk; call getCols on chunk; empty chunk; repeat
 for row in cur:
@@ -499,10 +511,13 @@ for row in cur:
         getCols(poker)
         poker = []
         gamesInChunk = set()
+getCols(poker)
+del poker,gamesInChunk
 
 print "Checkpoint, all table features done:", datetime.now()-startTime
+
 ######################## POPULATE COLUMN FEATURES #############################
-os.chdir('../features/column')
+os.chdir('../column')
 # list of possible actions, for reference in multiple columns
 actionsWB = ['deadblind','blind','fold','check','call','bet','raise']
 actions = actionsWB[2:]
@@ -1076,12 +1091,16 @@ cur.execute("""INSERT INTO columnFeatures
 cur.execute('DROP TABLE columnFeaturesTemp;')
 print "Checkpoint, columnFeatures table populated:", datetime.now()-startTime
 ################## MERGE TABLES TO FEATURESOLD, DELETE ########################
+colsToGrab = ['q.ActionID']
+colsToGrab += ['q.{}'.format(c) for c in tableCols['quickFeatures'][1:]]
+colsToGrab += ['t.{}'.format(c) for c in tableCols['tableFeatures'][1:]]
+colsToGrab += ['c.{}'.format(c) for c in tableCols['columnFeatures'][1:]]
 cur.execute("""INSERT INTO featuresOld
-            SELECT *
+            SELECT {}
             FROM quickFeatures AS q
             INNER JOIN tableFeatures AS t ON q.ActionID=t.ActionID
             INNER JOIN columnFeatures AS c ON q.ActionID=c.ActionID
-            ;""")
+            ;""".format(','.join(colsToGrab)))
 for t in tables:
     cur.execute('DROP TABLE {}Features;'.format(t))
 print "Checkpoint, quick/table/column to featuresOld:", datetime.now()-startTime
@@ -1104,7 +1123,6 @@ for p in playerVPIP:
 cur.execute('SELECT ActionID,Player FROM actions;')
 with open('sdVPIP.txt','ab') as outF:
     for i,p in cur:
-        p = p[0]
         sdv.append(playerVPIP[p])
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(sdv)) + '\n')
@@ -1151,11 +1169,14 @@ cur.execute("""INSERT INTO featuresNew
 cur.execute('DROP TABLE newFeaturesTemp;')
 print "Checkpoint, newFeatures populated:", datetime.now()-startTime
 ################## MERGE OLD AND NEW TO FEATURES, DELETE ######################
+colsToGrab = ['o.ActionID']
+colsToGrab += ['o.{}'.format(c) for c in tableCols['featuresOld'][1:]]
+colsToGrab += ['n.{}'.format(c) for c in tableCols['featuresNew'][1:]]
 cur.execute("""INSERT INTO features
-            SELECT *
+            SELECT {}
             FROM featuresOld AS o
             INNER JOIN featuresNew AS n ON o.ActionID=n.ActionID
-            ;""")
+            ;""".format(','.join(colsToGrab)))
 cur.execute('DROP TABLE featuresOld;')
 cur.execute('DROP TABLE featuresNew;')
 print "END! features populated:", datetime.now()-startTime
