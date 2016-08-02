@@ -1556,7 +1556,7 @@ def getData(nFiles, mp=True, useExamples=False):
     print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
-testing = True
+testing = False
 mp = True
 startTime = datetime.datetime.now()
 
@@ -1568,7 +1568,6 @@ if testing:
         allMatches = [f for f in allFiles if f.find("/"+sr)>=0 and f.find("/"+st+"/")>=0]
         if allMatches:
             examples.append(random.choice(allMatches))
-            #examples += random.sample(allMatches, 10)
     getData(len(examples), mp=mp, useExamples=True)
 else:
     getData(len(allFiles))
@@ -1589,7 +1588,6 @@ for f in ['actions','boards','games']:
     awk 'BEGIN {{FS=OFS=","}} {{print ${}}}' fullPoker.csv > DatabaseCSVs/{}.csv
     """.format(',$'.join(toStrings(fieldInds[f])),f).strip())
 
-    
 # delete fullPoker files
 os.remove('fullPoker.csv')
 
