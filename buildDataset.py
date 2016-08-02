@@ -29,9 +29,9 @@ cur = db.cursor()
 cur.execute('USE poker;')
 
 # restart the table if it already exists
-allTables = ['features','quickFeatures','tableFeatures','columnFeatures',
-             'columnFeaturesTemp','featuresOldTemp','featuresOld',
-             'featuresNewTemp','featuresNew']
+allTables = ['features','quickFeatures','tableFeatures','tableFeaturesTemp',
+             'columnFeatures','columnFeaturesTemp','featuresOldTemp',
+             'featuresOld','featuresNewTemp','featuresNew']
 for t in allTables:
     try:
         cur.execute('DROP TABLE {};'.format(t))
@@ -50,9 +50,9 @@ os.makedirs('features/new')
 datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
              'AggInPosVsMe': 'tinyint(1)','AggStack': 'decimal(10,2)',
              'AggressorPos': 'tinyint(2)','AllAggFactor': 'decimal(8,4)',
-             'AllBet': 'decimal(4,3)','AllCall': 'decimal(4,3)',
-             'AllCheck': 'decimal(4,3)','AllFold': 'decimal(4,3)',
-             'AllRaise': 'decimal(4,3)','AmountToCall': 'decimal(10,2)',
+             'AllBet': 'smallint(5)','AllCall': 'smallint(5)',
+             'AllCheck': 'smallint(5)','AllFold': 'smallint(5)',
+             'AllRaise': 'smallint(5)','AmountToCall': 'decimal(10,2)',
              'AvgCardRankFlop': 'decimal(4,2)','AvgCardRankRiver': 'decimal(4,2)',
              'AvgCardRankTurn': 'decimal(4,2)','BetRiverPct': 'decimal(4,3)',
              'BetsRaisesF': 'tinyint(2)','BetsRaisesGame': 'tinyint(2)',
@@ -103,24 +103,26 @@ datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
              'TurnBrick': 'tinyint(1)','TurnCallPct': 'decimal(4,3)',
              'TurnCheckPct': 'decimal(4,3)','TurnFoldPct': 'decimal(4,3)',
              'TurnOverCard': 'tinyint(1)','TurnRaisePct': 'decimal(4,3)',
-             'TwoToFlushDrawFlop': 'tinyint(1)','TwoToStraightDrawFlop': 'tinyint(1)',
+             'TwoToFlushDrawFlop': 'tinyint(1)', 'TwoToFlushDrawTurn': 'tinyint(1)',
+             'TwoToStraightDrawFlop': 'tinyint(1)',
              'TwoToStraightDrawTurn': 'tinyint(1)','VPIP': 'decimal(4,3)',
              'WinAtSDPct': 'decimal(4,3)','WinWithoutSDPct': 'decimal(4,3)',
              'WinWhenSeeFlopPct': 'decimal(4,3)','sdVPIP': 'decimal(8,4)'
              }
 
 tableCols = {
-    'quickFeatures': ['ActionID', 'Action', 'Round', 'FacingBet',
+    'quickFeatures': ['Action', 'Round', 'FacingBet',
           'AmountToCall', 'CurrentPot', 'NumPlayersStart',
-          'NumPlayersLeft', 'BigBlind'],
-    'tableFeatures': ['ActionID', 'NumChecksGame', 'LastToAct', 'LastToActStack',
-          'FinalPotLastHandTable', 'CBisCheckRaise', 'BetsRaisesGame',
-          'BetsRaisesP', 'BetsRaisesF', 'BetsRaisesT', 'BetsRaisesR',
-          'NumPairsFlop', 'NumPairsTurn', 'NumPairsRiver', 
-          'TwoToFlushDrawFlop', 'ThreeToFlushDrawFlop', 'FlushTurned', 
-          'FlushRivered', 'HighCardFlop', 'HighCardTurn', 'HighCardRiver', 
-          'RangeFlop', 'RangeTurn', 'RangeRiver', 'TwoToStraightDrawFlop',
-          'TwoToStraightDrawTurn', 'ThreeToStraightFlop', 
+          'NumPlayersLeft', 'BigBlind','StackToPot', 'IsSB', 'IsBB', 
+          'InvestedThisGame', 'ActionID'],
+    'tableFeatures': ['NumChecksGame', 'LastToAct', 
+          'LastToActStack','FinalPotLastHandTable', 'CBisCheckRaise',
+          'BetsRaisesGame','BetsRaisesP', 'BetsRaisesF', 'BetsRaisesT',
+          'BetsRaisesR','NumPairsFlop', 'NumPairsTurn', 'NumPairsRiver', 
+          'TwoToFlushDrawFlop', 'TwoToFlushDrawTurn','ThreeToFlushDrawFlop',
+          'FlushTurned', 'FlushRivered', 'HighCardFlop', 'HighCardTurn',
+          'HighCardRiver', 'RangeFlop', 'RangeTurn', 'RangeRiver', 
+          'TwoToStraightDrawFlop','TwoToStraightDrawTurn', 'ThreeToStraightFlop', 
           'ThreeOrMoreToStraightTurn', 'ThreeOrMoreToStraightRiver', 
           'TurnOverCard', 'RiverOverCard', 'NumFaceCardsFlop', 
           'NumFaceCardsTurn', 'NumFaceCardsRiver', 'AvgCardRankFlop', 
@@ -129,8 +131,8 @@ tableCols = {
           'SDOtherStackRelBBRelSelf', 'MaxOtherStackRelBBRelSelf', 
           'MinOtherStackRelBBRelSelf', 'AggressorPos', 'AggInPosVsMe', 
           'AggStack', 'IsAgg', 'SeatRelDealerRelNP', 'EffectiveStack', 
-          'ESvsAgg', 'StackToPot', 'IsSB', 'IsBB', 'InvestedThisGame'],
-    'columnFeaturesTemp': ['ActionID', 'Action', 'LastAction', 'AllFold', 
+          'ESvsAgg', 'ActionID'],
+    'columnFeaturesTemp': ['Action', 'LastAction', 'AllFold', 
           'AllCheck', 'AllCall', 'AllBet', 'AllRaise', 'PreflopFoldPct', 
           'PreflopCheckPct', 'PreflopCallPct', 'PreflopBetPct', 'PreflopRaisePct',
           'FlopFoldPct', 'FlopCheckPct', 'FlopCallPct', 'FlopBetPct', 'FlopRaisePct', 
@@ -140,38 +142,21 @@ tableCols = {
           'WinWhenSeeFlopPct', 'WinWithoutSDPct', 'WinAtSDPct', 'ContBetPct', 
           'BetRiverPct', 'CallOrRaisePFRPct', 'FoldToCBetPct', 'CallCBetPct', 
           'RaiseCBetPct', 'FoldToFlopBetPct', 'CallFlopBetPct', 'RaiseFlopBetPct', 
-          'NetLastHandRelSS', 'PartInLastHand'],
-    'featuresOld': ['ActionID', 'Action', 'Round', 'FacingBet', 
-          'AmountToCall', 'CurrentPot', 'NumPlayersStart', 'NumPlayersLeft', 
-          'BigBlind', 'NumChecksGame', 'LastToAct', 'LastToActStack', 
-          'FinalPotLastHandTable', 'CBisCheckRaise', 'BetsRaisesGame', 
-          'BetsRaisesP', 'BetsRaisesF', 'BetsRaisesT', 'BetsRaisesR', 
-          'NumPairsFlop', 'NumPairsTurn', 'NumPairsRiver', 'TwoToFlushDrawFlop',
-          'ThreeToFlushDrawFlop', 'FlushTurned', 'FlushRivered', 'HighCardFlop',
-          'HighCardTurn', 'HighCardRiver', 'RangeFlop', 'RangeTurn', 'RangeRiver',
-          'TwoToStraightDrawFlop', 'TwoToStraightDrawTurn', 'ThreeToStraightFlop',
-          'ThreeOrMoreToStraightTurn', 'ThreeOrMoreToStraightRiver', 'TurnOverCard',
-          'RiverOverCard', 'NumFaceCardsFlop', 'NumFaceCardsTurn', 'NumFaceCardsRiver', 
-          'AvgCardRankFlop', 'AvgCardRankTurn', 'AvgCardRankRiver', 'TurnBrick', 
-          'RiverBrick', 'MeanOtherStackRelBBRelSelf', 'SDOtherStackRelBBRelSelf', 
-          'MaxOtherStackRelBBRelSelf', 'MinOtherStackRelBBRelSelf', 'AggressorPos', 
-          'AggInPosVsMe', 'AggStack', 'IsAgg', 'SeatRelDealerRelNP', 'EffectiveStack', 
-          'ESvsAgg', 'StackToPot', 'IsSB', 'IsBB', 'InvestedThisGame', 'LastAction', 
-          'AllFold', 'AllCheck', 'AllCall', 'AllBet', 'AllRaise', 'PreflopFoldPct', 
-          'PreflopCheckPct', 'PreflopCallPct', 'PreflopBetPct', 'PreflopRaisePct',
-          'FlopFoldPct', 'FlopCheckPct', 'FlopCallPct', 'FlopBetPct', 'FlopRaisePct',
-          'TurnFoldPct', 'TurnCheckPct', 'TurnCallPct', 'TurnBetPct', 'TurnRaisePct',
-          'RiverFoldPct', 'RiverCheckPct', 'RiverCallPct', 'RiverBetPct',
-          'RiverRaisePct', 'VPIP', 'NetAtTable', 'ThreeBetPct', 'SeeSDPct', 
-          'WinWhenSeeFlopPct','WinWithoutSDPct', 'WinAtSDPct', 'ContBetPct',
-          'BetRiverPct', 'CallOrRaisePFRPct', 'FoldToCBetPct', 'CallCBetPct', 
-          'RaiseCBetPct', 'FoldToFlopBetPct', 'CallFlopBetPct', 'RaiseFlopBetPct',
-          'NetLastHandRelSS','PartInLastHand'],
-    'featuresNew': ['ActionID', 'Action', 'sdVPIP', 'AllAggFactor',
-          'PreflopAggFactor', 'FlopAggFactor', 'TurnAggFactor', 'RiverAggFactor']}
+          'NetLastHandRelSS', 'PartInLastHand', 'ActionID'],
+    'featuresNewTemp': ['Action','sdVPIP', 'AllAggFactor','PreflopAggFactor', 'FlopAggFactor',
+                    'TurnAggFactor', 'RiverAggFactor', 'ActionID']}
+
 tableCols['columnFeatures'] = list(tableCols['columnFeaturesTemp'])
 tableCols['columnFeatures'].remove('Action')
-tableCols['features'] = tableCols['featuresOld'] + tableCols['featuresNew'][2:]
+
+tableCols['featuresNew'] = list(tableCols['featuresNewTemp'])
+tableCols['featuresNew'].remove('Action')
+
+tableCols['featuresOld'] = tableCols['quickFeatures'][:-1] + \
+                            tableCols['tableFeatures'][:-1] + \
+                            tableCols['columnFeaturesTemp'][1:]
+
+tableCols['features'] = tableCols['featuresOld'] + tableCols['featuresNew'][:-1]
 
 def createTable(tableName, pk = True):
     cols = tableCols[tableName]
@@ -196,10 +181,14 @@ print "Checkpoint, tables created:", datetime.now()-startTime
 ######################## POPULATE QUICK FEATURES ##############################
 cur.execute("""INSERT INTO quickFeatures
             (Action,Round,FacingBet,AmountToCall,CurrentPot,
-             NumPlayersStart,NumPlayersLeft,BigBlind)
+             NumPlayersStart,NumPlayersLeft,BigBlind,StackToPot,
+             IsSB,IsBB,InvestedThisGame,ActionID)
             SELECT a.Action,a.Round,a.CurrentBet>a.InvestedThisRound,
                     a.CurrentBet-a.InvestedThisRound,a.CurrentPot,
-                    g.NumPlayers,a.NumPlayersLeft,g.BigBlind
+                    g.NumPlayers,a.NumPlayersLeft,g.BigBlind,
+                    ROUND(a.CurrentStack / a.CurrentPot,2), a.SeatRelDealer=1,
+                    a.SeatRelDealer=2, a.StartStack - a.CurrentStack,
+                    a.ActionID
             FROM actions AS a
             INNER JOIN games AS g
             ON a.GameNum=g.GameNum
@@ -209,7 +198,8 @@ print "Checkpoint, quickFeatures populated:", datetime.now()-startTime
 os.chdir('features/table')
 #### VECTORIZED FEATURES ####
 # needed columns: GameNum,Player,Action
-cols = ['GameNum','Player','Action','Round','SeatRelDealer','CurrentStack']
+cols = ['GameNum','Player','Action','Round','SeatRelDealer','CurrentStack',
+        'NumPlayers']
 cur.execute("""SELECT a.{} FROM actions AS a
             INNER JOIN games AS g
             ON a.GameNum=g.GameNum;""".format(','.join(cols)))
@@ -225,18 +215,29 @@ def getCols(poker):
     poker = pd.DataFrame(poker, columns=cols)
     pokerWOB = pd.DataFrame(poker.ix[~(poker.Action.isin(['deadblind','blind']))])
     
+    newCols['Action'] = pokerWOB.Action
+    newCols['ActionID'] = pokerWOB.index + 1
+    
     # vectorized columns
     pokerWOB['PrevAction'] = poker.groupby(['GameNum','Player']).Action.shift(1).ix[pokerWOB.index].fillna('None')
-    newCols['CBisCheckRaise'] = (pokerWOB.PrevAction=='check') & (pokerWOB.Action=='raise')
+    newCols['CBisCheckRaise'] = ((pokerWOB.PrevAction=='check') & (pokerWOB.Action=='raise')).astype(int)
     
     pokerWOB['BetOrRaise'] = pokerWOB.Action.isin(['bet','raise'])
+    pokerWOB['check'] = pokerWOB.Action=='check'
     newCols['BetsRaisesGame'] = pokerWOB.groupby('GameNum').BetOrRaise.cumsum()
+    newCols['NumChecksGame'] = pokerWOB.groupby('GameNum').check.cumsum()
+    
+    newCols['SeatRelDealerRelNP'] = pokerWOB.SeatRelDealer / pokerWOB.NumPlayers
     
     agg = poker.Action.isin(['deadblind','blind','bet','raise']).astype(bool)
     pokerWOB['AggressorPos'] = (poker.SeatRelDealer*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
+    newCols['IsAgg'] = agg.ix[pokerWOB.index].astype(int)
     newCols['AggressorPos'] = pokerWOB.AggressorPos
-    newCols['AggInPosVsMe'] = pokerWOB.AggressorPos < pokerWOB.SeatRelDealer
+    newCols['AggInPosVsMe'] = (pokerWOB.AggressorPos < pokerWOB.SeatRelDealer).astype(int)
     newCols['AggStack'] = (poker.CurrentStack*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
+    newCols['ESvsAgg'] = (pd.Series(newCols['AggStack'])>=pokerWOB.CurrentStack) \
+            *pd.Series(newCols['AggStack']) + \
+            (pokerWOB.CurrentStack>=newCols['AggStack'])*pokerWOB.CurrentStack
     
     # total bets and raises for each round
     # (not vectorized, but convenient to calculate here)
@@ -275,8 +276,8 @@ del poker,gamesInChunk
 print "Checkpoint, all vectorized features done:", datetime.now()-startTime
 
 #### LOOPING FEATURES ####
-cols =  ['GameNum','Round','SeatRelDealer','Action','CurrentStack',
-         'TableName','CurrentPot']
+cols =  ['GameNum','Round','Player','SeatRelDealer','Action','CurrentStack',
+         'TableName','CurrentPot','BigBlind']
 cur.execute("""SELECT {}
             FROM actions AS a
             INNER JOIN games AS g
@@ -286,34 +287,72 @@ gamesInChunk = set()
 
 def getCols(poker):
     # initialize
-    newCols = {}
     poker = pd.DataFrame(poker, columns=cols)
     pokerWOB = poker.ix[~(poker.Action.isin(['blind','deadblind']))]
+    newColNames = ['EffectiveStack','LastToAct','LastToActStack',
+                   'FinalPotLastHandTable','MeanOtherStackRelBBRelSelf',
+                   'SDOtherStackRelBBRelSelf','MinOtherStackRelBBRelSelf',
+                   'MaxOtherStackRelBBRelSelf']
+    newCols = {c:[] for c in newColNames}
     
-    # last to act
-    relevantCols = ['GameNum','Round','SeatRelDealer','Action']
-    ltaDF = zip(*[poker[c] for c in relevantCols])
-    LTAbyRow = []
-    m = len(ltaDF)
-    for i,(gameNum,rd,seat,action) in enumerate(ltaDF):
-        ap = []
+    # all of them at once
+    allDF = zip(*[poker[c] for c in poker.columns])
+    tableLastHandPot = {}
+    for i,(gameNum,rd,player,seat,action,
+           currentStack,table,currentPot,bb) in enumerate(allDF):
+        # prep
         windowStart = i
         windowEnd = i
-        while windowStart>=0 and ltaDF[windowStart][:2]==(gameNum,rd):
-            if ltaDF[windowStart][3]!='fold':
-                ap.append(ltaDF[windowStart][2])
+        maxOtherStack = 0 # effective stack
+        ap = [] # last to act
+        tableLastHandPot = {} # final pot
+        otherStacks = [] # relbb
+        m = len(allDF) # all
+        
+        # final pot of last hand at table
+        if not table in tableLastHandPot:
+            tableLastHandPot[table] = -1
+        newCols['FinalPotLastHandTable'].append(tableLastHandPot[table])
+        if (i+1)<len(allDF) and gameNum!=allDF[i+1][0]:
+            tableLastHandPot[table] = currentPot
+        
+        # all others
+        while windowStart>=0 and allDF[windowStart][:2]==(gameNum,rd):
+            r = allDF[windowStart]
+            # effective stack
+            if r[2]!=player and r[4]!='fold':
+                if r[5]>maxOtherStack:
+                    maxOtherStack = r[5]
+                # other stacks
+                otherStacks.append(r[5])
+            # last to act
+            if allDF[windowStart][4]!='fold':
+                ap.append(allDF[windowStart][3])
             windowStart -= 1
-        while windowEnd<m and ltaDF[windowEnd][:2]==(gameNum,rd):
-            ap.append(ltaDF[windowEnd][2])
+        while windowEnd<m and allDF[windowEnd][:2]==(gameNum,rd):
+            row = allDF[windowEnd]
+            # effective stack
+            if row[2]!=player:
+                if r[5]>maxOtherStack:
+                    maxOtherStack = r[5]
+                # other stacks
+                otherStacks.append(r[5])
+            # last to act
+            ap.append(allDF[windowEnd][3])
             windowEnd += 1
-        LTAbyRow.append(min(ap))
-    newCols['LastToAct'] = [LTAbyRow[i] for i in pokerWOB.index]
-    del LTAbyRow
-    gc.collect()
-
-    # last to act stack
-    ltasDF = zip(pokerWOB.GameNum, pokerWOB.CurrentStack, 
-                 pokerWOB.SeatRelDealer, newCols['LastToAct'])
+        # other stacks
+        stacks = [(s-currentStack)/bb for s in otherStacks]
+        # writing
+        newCols['EffectiveStack'].append(min([currentStack,maxOtherStack]))
+        newCols['LastToAct'].append(min(ap))
+        newCols['MeanOtherStackRelBBRelSelf'].append(round(np.mean(stacks),2))
+        newCols['SDOtherStackRelBBRelSelf'].append(round(np.std(stacks),2))
+        newCols['MinOtherStackRelBBRelSelf'].append(round(np.min(stacks),2))
+        newCols['MaxOtherStackRelBBRelSelf'].append(round(np.max(stacks),2))
+    
+    # last to act stack (separate from rest due to conditions on while)
+    ltasDF = zip(poker.GameNum, poker.CurrentStack, 
+                 poker.SeatRelDealer, newCols['LastToAct'])
     LTASbyRow = []
     m = len(ltasDF)
     for i,(gameNum,stack,seat,lta) in enumerate(ltasDF):
@@ -337,21 +376,10 @@ def getCols(poker):
     newCols['LastToActStack'] = LTASbyRow
     del LTASbyRow
     gc.collect()
-
-    # final pot of last hand at table
-    relevantCols = ['GameNum','TableName','CurrentPot']
-    tlhpDF = zip(*[pokerWOB[c] for c in relevantCols])
-    TLHPbyRow = []
-    tableLastHandPot = {}
-    for i,(gameNum,table,cp) in enumerate(tlhpDF):
-        if not table in tableLastHandPot:
-            tableLastHandPot[table] = -1
-        TLHPbyRow.append(tableLastHandPot[table])
-        if (i+1)<len(tlhpDF) and gameNum!=tlhpDF[i+1][0]:
-            tableLastHandPot[table] = cp
-    newCols['FinalPotLastHandTable'] = TLHPbyRow
-    del TLHPbyRow
-    gc.collect()
+    
+    # filter all columns to wob
+    for c in newCols:
+        newCols[c] = [newCols[c][i] for i in pokerWOB.index]
 
     # write columns to text
     for c,v in newCols.iteritems():
@@ -363,7 +391,6 @@ for row in cur:
     poker.append(row)
     gamesInChunk.add(row[0])
     if len(gamesInChunk) % 69768 == 0:
-        print len(gamesInChunk)
         getCols(poker)
         poker = []
         gamesInChunk = set()
@@ -415,21 +442,21 @@ def getCols(poker):
     newCols['NumPairsRiver'] = (rankCountsRiver==2).sum(axis=1)
     
     # Flush draw on the flop (2 to a suit, not 3)
-    newCols['TwoToFlushDrawFlop'] = (suitCountsFlop==2).sum(axis=1)>0
+    newCols['TwoToFlushDrawFlop'] = ((suitCountsFlop==2).sum(axis=1)>0).astype(int)
     
     # Flush draw on the flop (3 to a suit)
-    newCols['ThreeToFlushDrawFlop'] = (suitCountsFlop==3).sum(axis=1)>0
+    newCols['ThreeToFlushDrawFlop'] = ((suitCountsFlop==3).sum(axis=1)>0).astype(int)
     
     # Flush draw on the turn (still 2 to a suit, not 3)
-    newCols['TwoToFlushDrawTurn'] = (suitCountsTurn==2).sum(axis=1)>0
+    newCols['TwoToFlushDrawTurn'] = ((suitCountsTurn==2).sum(axis=1)>0).astype(int)
     
     # Flush draw connects on the turn (from 2 to 3)
-    newCols['FlushTurned'] = (pd.Series(newCols['TwoToFlushDrawFlop'])) & \
-                            ((suitCountsTurn==3).sum(axis=1)>0)
+    newCols['FlushTurned'] = ((pd.Series(newCols['TwoToFlushDrawFlop'])) & \
+                            ((suitCountsTurn==3).sum(axis=1)>0)).astype(int)
                             
     # Flush draw connects on the river (from 2 to 3)
-    newCols['FlushRivered'] = (pd.Series(newCols['TwoToFlushDrawTurn'])) & \
-                            ((suitCountsRiver==3).sum(axis=1)>0)
+    newCols['FlushRivered'] = ((pd.Series(newCols['TwoToFlushDrawTurn'])) & \
+                            ((suitCountsRiver==3).sum(axis=1)>0)).astype(int)
     
     # High card on each street
     newCols['HighCardFlop'] = boardRanks.ix[:,:2].max(axis=1)
@@ -446,41 +473,39 @@ def getCols(poker):
     for a,b in product(range(5), range(5)):
         if a!=b:
             k = '-'.join([str(a+1),str(b+1)])
-            if not k in diffs:
-                diffs[k] = []
-            diffs[k].append(list(abs(boardRanks.ix[:,a] - boardRanks.ix[:,b]))[0])
+            diffs[k] = list(abs(boardRanks.ix[:,a] - boardRanks.ix[:,b]))
     diffs = pd.DataFrame(diffs)
     
     # 2 to a straight draw on each flop, turn
     diffsFlop = diffs[[c for c in diffs.columns
                         if not ('3' in c or '4' in c)]]
-    newCols['TwoToStraightDrawFlop'] = ((diffsFlop==1).sum(axis=1))>=1 
+    newCols['TwoToStraightDrawFlop'] = (((diffsFlop==1).sum(axis=1))>=1).astype(int)
     
     diffsTurn = diffs[[c for c in diffs.columns if not '4' in c]]
-    newCols['TwoToStraightDrawTurn'] = ((diffsTurn==1).sum(axis=1))>=1
+    newCols['TwoToStraightDrawTurn'] = (((diffsTurn==1).sum(axis=1))>=1).astype(int)
     
     # 3+ to a straight on flop
-    newCols['ThreeToStraightFlop'] = pd.Series(newCols['RangeFlop'])==2
+    newCols['ThreeToStraightFlop'] = (pd.Series(newCols['RangeFlop'])==2).astype(int)
     
     # 3+ to a straight on turn
     comboRanges = []
     for cards in combinations(range(4),3):
         c = boardRanks.ix[:,cards]
         comboRanges.append((c.max(axis=1) - c.min(axis=1) == 2) & (c.notnull().sum(axis=1)==3))
-    newCols['ThreeOrMoreToStraightTurn'] = pd.DataFrame(comboRanges).sum()>0
+    newCols['ThreeOrMoreToStraightTurn'] = (pd.DataFrame(comboRanges).sum()>0).astype(int)
     
     # 3+ to a straight on river
     comboRanges = []
     for cards in combinations(range(5),3):
         c = boardRanks.ix[:,cards]
         comboRanges.append((c.max(axis=1) - c.min(axis=1) == 2) & (c.notnull().sum(axis=1)==3))
-    newCols['ThreeOrMoreToStraightRiver'] = pd.DataFrame(comboRanges).sum()>0
+    newCols['ThreeOrMoreToStraightRiver'] = (pd.DataFrame(comboRanges).sum()>0).astype(int)
     
     # turn is over card (greater than max(flop))
-    newCols['TurnOverCard'] = boardRanks['Board4'] > boardRanks.ix[:,:3].max(axis=1)
+    newCols['TurnOverCard'] = (boardRanks['Board4'] > boardRanks.ix[:,:3].max(axis=1)).astype(int)
     
     # river is over card (greater than max(flop+turn))
-    newCols['RiverOverCard'] = boardRanks['Board5'] > boardRanks.ix[:,:4].max(axis=1)
+    newCols['RiverOverCard'] = (boardRanks['Board5'] > boardRanks.ix[:,:4].max(axis=1)).astype(int)
     
     # num face cards each street
     newCols['NumFaceCardsFlop'] = (boardRanks.ix[:,:3]>=9).sum(axis=1)
@@ -488,15 +513,19 @@ def getCols(poker):
     newCols['NumFaceCardsRiver'] = (boardRanks>=9).sum(axis=1)
     
     # average card rank
-    newCols['AvgCardRankFlop'] = (boardRanks.ix[:,:3]).mean(axis=1)
-    newCols['AvgCardRankTurn'] = (boardRanks.ix[:,:4]).mean(axis=1)
-    newCols['AvgCardRankRiver'] = boardRanks.mean(axis=1)
+    newCols['AvgCardRankFlop'] = (boardRanks.ix[:,:3]).mean(axis=1).round(2)
+    newCols['AvgCardRankTurn'] = (boardRanks.ix[:,:4]).mean(axis=1).round(2)
+    newCols['AvgCardRankRiver'] = boardRanks.mean(axis=1).round(2)
     
     # turn is a brick (5 or less and not pair and not making a flush)
-    newCols['TurnBrick'] = (boardRanks.Board4<=5) & (pd.Series(newCols['NumPairsFlop'])==pd.Series(newCols['NumPairsTurn'])) & (~pd.Series(newCols['FlushTurned']))
+    newCols['TurnBrick'] = ((boardRanks.Board4<=5) & 
+        (pd.Series(newCols['NumPairsFlop'])==pd.Series(newCols['NumPairsTurn'])) & 
+        (~pd.Series(newCols['FlushTurned']))).astype(int)
     
     # river is a brick (5 or less and not pair and not making a flush)
-    newCols['RiverBrick'] = (boardRanks.Board5<=5) & (pd.Series(newCols['NumPairsTurn'])==pd.Series(newCols['NumPairsRiver'])) & (~pd.Series(newCols['FlushRivered']))
+    newCols['RiverBrick'] = ((boardRanks.Board5<=5) & 
+        (pd.Series(newCols['NumPairsTurn'])==pd.Series(newCols['NumPairsRiver'])) & 
+        (~pd.Series(newCols['FlushRivered']))).astype(int)
     
     # write to text files
     for c,v in newCols.iteritems():
@@ -522,16 +551,32 @@ os.chdir('../column')
 actionsWB = ['deadblind','blind','fold','check','call','bet','raise']
 actions = actionsWB[2:]
 
+# action
+cur.execute('SELECT Action FROM actions;')
+A = []
+with open('Action.txt','ab') as outF:
+    for i,a in enumerate(cur):
+        a = a[0]
+        A.append(a)
+        if i % 10000000 == 0:
+            outF.write('\n'.join(A) + '\n')
+            A = []
+    outF.write('\n'.join(A))
+    A = None
+
 # player's last action
-cur.execute('SELECT ActionID,Player,Action FROM actions;')
+cur.execute('SELECT Player,Action FROM actions;')
+appends = 0
 with open('LastAction.txt','ab') as outF:
     pla = []
     lastActions = {}
-    for i,p,a in cur:
+    for i,(p,a) in enumerate(cur):
         if p in lastActions:
             pla.append(lastActions[p])
+            appends += 1
         else:
             pla.append('None')
+            appends += 1
         lastActions[p] = a
         if i % 10000000 == 0:
             outF.write('\n'.join(pla) + '\n')
@@ -560,8 +605,8 @@ for p,a,r in cur:
     else:
         playersActionsByRound[p] = {a:{r:1., 'All':1.}}
 ## WRITE
-cur.execute('SELECT ActionID,Player,Action FROM actions;')
-for i,p,a in cur:
+cur.execute('SELECT Player,Action FROM actions;')
+for i,(p,a) in enumerate(cur):
     actionsByRound = playersActionsByRound[p]
     # fill all missing keys, e.g. player never folded on flop add a 0 there
     for a in actions:
@@ -581,13 +626,15 @@ for i,p,a in cur:
             else:
                 rAsPct = 0.
             colsToBeWritten[a][r].append(rAsPct)
-        colsToBeWritten[a]['All'].append(byRound['All'])
+        colsToBeWritten[a]['All'].append(int(byRound['All']))
     if i % 10000000 == 0:
         for a in actions:
             for r in rounds:
-                f = open('{}{}Pct.txt'.format(r,a[:1].upper()+a[1:]),'ab')
+                f = open('{}{}{}.txt'.format(
+                        r,a[:1].upper()+a[1:], 'Pct'*(r!='All')),'ab')
                 f.write('\n'.join(toStrings(colsToBeWritten[a][r])) + '\n')
                 f.close()
+                colsToBeWritten[a][r] = []
         colsToBeWritten[a][r] = []
 for a in actions:
     for r in rounds:
@@ -601,7 +648,6 @@ colsToBeWritten,playerActionsByRound = [None,None]
 ## GET
 cur.execute('SELECT Player,Round,Action FROM actions;')
 vpip = []
-pfr = []
 playersCalls = {}
 playersRaises = {}
 playersPreflopOps = {}
@@ -617,9 +663,10 @@ for p,r,a in cur:
             playersCalls[p] = int(a=='call')
             playersRaises[p] = int(a=='raise')
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('VPIP.txt','ab') as vpipF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         vpip.append((playersCalls[p]+playersRaises[p]) / playersPreflopOps[p])
         if i % 10000000 == 0:
             vpipF.write('\n'.join(toStrings(vpip)) + '\n')
@@ -642,11 +689,11 @@ with open('NetAtTable.txt','ab') as outF:
             else:
                 # player not seen at table before, record start stack at table, take 0
                 playerTableStartStacks[p][t] = s
-                nat.append(0)
+                nat.append(0.)
         else:
             # player not seen before, record first table start stack, take 0
             playerTableStartStacks[p] = {t: s}
-            nat.append(0)
+            nat.append(0.)
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(nat)) + '\n')
             nat = []
@@ -676,13 +723,14 @@ for p,r,a in cur:
             player3Bets[p] = a=='raise'
             player3BetOpps[p] = 1.
     lastRowRound = r
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('ThreeBetPct.txt','ab') as outF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         if p in player3BetOpps:
             threeBets.append(player3Bets[p] / player3BetOpps[p])
         else:
-            threeBets.append(0)
+            threeBets.append(0.)
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(threeBets)) + '\n')
             threeBets = []
@@ -701,9 +749,10 @@ for p,g,c in cur:
     else:
         playerGameSeesSD[p] = {g: c!='-1'}
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('SeeSDPct.txt','ab') as outF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         allG = playerGameSeesSD[p].values()
         ssPct.append(np.mean(allG))
         if i % 10000000 == 0:
@@ -728,13 +777,14 @@ for p,g,r,w in cur:
             playerFlopOpps[p] = {g}
             playerFlopWins[p] = w>0
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('WinWhenSeeFlopPct.txt','ab') as outF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         if p in playerFlopOpps:
             wf.append(float(playerFlopWins[p]) / len(playerFlopOpps[p]))
         else:
-            wf.append(0)
+            wf.append(0.)
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(wf)) + '\n')
             wf = []
@@ -743,11 +793,11 @@ with open('WinWhenSeeFlopPct.txt','ab') as outF:
 ############################################
 # win without showdown % (wins without showdown / total wins)
 ## GET
-cur.execute('SELECT ActionID,Player,GameNum,HoleCard1,Winnings FROM actions;')
+cur.execute('SELECT Player,GameNum,HoleCard1,Winnings FROM actions;')
 wws = []
 playerWinsWSD = {}
 playerWins = {}
-for i,p,g,c,w in cur:
+for i,(p,g,c,w) in enumerate(cur):
     if w:
         if p in playerWins:
             playerWins[p].add(g)
@@ -758,13 +808,14 @@ for i,p,g,c,w in cur:
             if c=='-1':
                 playerWinsWSD[p] = {g}
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('WinWithoutSDPct.txt','ab') as outF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         if p in playerWinsWSD:
             wws.append(float(len(playerWinsWSD[p])) / len(playerWins[p]))
         else:
-            wws.append(0)
+            wws.append(0.)
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(wws)) + '\n')
             wws = []
@@ -788,13 +839,14 @@ for p,g,c,w in cur:
             if w:
                 playerWinsAtSD[p] = {g}
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('WinAtSDPct.txt','ab') as outF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         if p in playerWinsAtSD:
             ws.append(float(len(playerWinsAtSD[p])) / len(playerShowdowns[p]))
         else:
-            ws.append(0)
+            ws.append(0.)
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(ws)) + '\n')
             ws = []
@@ -826,15 +878,16 @@ for p,g,r,a in cur:
             playerContBets[p] += a=='bet'
     lastG = g
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('ContBetPct.txt','ab') as outF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         if p in playerContBets:
             cb.append(playerContBets[p] / playerContBetOpps[p])
         else:
-            cb.append(0)
+            cb.append(0.)
         if i % 10000000 == 0:
-            outF.write('\n'.join(toStrings(cb)))
+            outF.write('\n'.join(toStrings(cb)) + '\n')
             cb = []
     outF.write('\n'.join(toStrings(cb)))
     cb,playerContBets,playerContBetOpps = [None,None,None]
@@ -854,13 +907,14 @@ for p,r,a in cur:
             playerRiverOpps[p] = a in ['bet','check']
             playerRiverBets[p] = a=='bet'
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('BetRiverPct.txt','ab') as outF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         if p in playerRiverOpps and playerRiverOpps[p]>0:
             br.append(float(playerRiverBets[p]) / playerRiverOpps[p])
         else:
-            br.append(0)
+            br.append(0.)
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(br)) + '\n')
             br = []
@@ -888,13 +942,14 @@ for p,r,g,a in cur:
         if a in ['call','raise']:
             playerPFRCalls[p] += 1.
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('CallOrRaisePFRPct.txt','ab') as outF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         if p in playerPFROpps and playerPFROpps[p]>0:
             cpfr.append(playerPFRCalls[p] / playerPFROpps[p])
         else:
-            cpfr.append(0)
+            cpfr.append(0.)
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(cpfr)) + '\n')
             cpfr = []
@@ -904,7 +959,7 @@ with open('CallOrRaisePFRPct.txt','ab') as outF:
 # fold to, call, raise C-bet %
 ## GET
 cur.execute('SELECT Player,Round,GameNum,Action FROM actions;')
-fcb,ccb,rcb = [[]]*3
+cBetReacts = {'fold':[], 'call':[], 'raise':[]}
 playerCBetActions = {}
 playerCBetOpps = {}
 cBettor = ''
@@ -935,41 +990,34 @@ for p,r,g,a in cur:
                 playerCBetActions[p] = {a:1.}
     lastG = g
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('FoldToCBetPct.txt','ab') as outFoldF, \
         open('CallCBetPct.txt','ab') as outCallF, open('RaiseCBetPct.txt','ab') as outRaiseF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         if p in playerCBetOpps and playerCBetOpps[p]>0:
-            if 'fold' in playerCBetActions[p]:
-                fcb.append(playerCBetActions[p]['fold'] / playerCBetOpps[p])
-            else:
-                fcb.append(0)
-            if 'call' in playerCBetActions[p]:
-                ccb.append(playerCBetActions[p]['call'] / playerCBetOpps[p])
-            else:
-                ccb.append(0)
-            if 'raise' in playerCBetActions[p]:
-                rcb.append(playerCBetActions[p]['raise'] / playerCBetOpps[p])
-            else:
-                rcb.append(0)
+            for a in ['fold','call','raise']:
+                if a in playerCBetActions[p]:
+                    cBetReacts[a].append(playerCBetActions[p][a] / playerCBetOpps[p])
+                else:
+                    cBetReacts[a].append(0.)
         else:
-            fcb.append(0)
-            ccb.append(0)
-            rcb.append(0)
+            for a in ['fold','call','raise']:
+                cBetReacts[a].append(0.)
         if i % 10000000 == 0:
-            outFoldF.write('\n'.join(toStrings(fcb)) + '\n')
-            outCallF.write('\n'.join(toStrings(ccb)) + '\n')
-            outRaiseF.write('\n'.join(toStrings(rcb)) + '\n')
-            fcb,ccb,rcb = [[]]*3
-    outFoldF.write('\n'.join(toStrings(fcb)))
-    outCallF.write('\n'.join(toStrings(ccb)))
-    outRaiseF.write('\n'.join(toStrings(rcb)))
-    fcb,ccb,rcb = [None,None,None]
+            outFoldF.write('\n'.join(toStrings(cBetReacts['fold'])) + '\n')
+            outCallF.write('\n'.join(toStrings(cBetReacts['call'])) + '\n')
+            outRaiseF.write('\n'.join(toStrings(cBetReacts['raise'])) + '\n')
+            cBetReacts = {'fold':[], 'call':[], 'raise':[]}
+    outFoldF.write('\n'.join(toStrings(cBetReacts['fold'])))
+    outCallF.write('\n'.join(toStrings(cBetReacts['call'])))
+    outRaiseF.write('\n'.join(toStrings(cBetReacts['raise'])))
+    cBetReacts = None
 ############################################
 # fold to, call, raise flop bet %
 ## GET
 cur.execute('SELECT Player,Round,GameNum,Action FROM actions;')
-ffb,cfb,rfb = [[]]*3
+flopBetReacts = {'fold':[], 'call':[], 'raise':[]}
 playerFBetActions = {}
 playerFBetOpps = {}
 facingBet = False
@@ -993,49 +1041,43 @@ for p,r,g,a in cur:
         if a=='bet':
             facingBet = True
         lastG = g
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute('SELECT Player FROM actions;')
 with open('FoldToFlopBetPct.txt','ab') as outFoldF, \
         open('CallFlopBetPct.txt','ab') as outCallF, open('RaiseFlopBetPct.txt','ab') as outRaiseF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         if p in playerFBetOpps and playerFBetOpps[p]>0:
-            if 'fold' in playerFBetActions[p]:
-                ffb.append(playerFBetActions[p]['fold'] / playerFBetOpps[p])
-            else:
-                ffb.append(0)
-            if 'call' in playerFBetActions[p]:
-                ffb.append(playerFBetActions[p]['call'] / playerFBetOpps[p])
-            else:
-                ffb.append(0)
-            if 'raise' in playerFBetActions[p]:
-                ffb.append(playerFBetActions[p]['raise'] / playerFBetOpps[p])
-            else:
-                ffb.append(0)
+            for a in ['fold','call','raise']:
+                if a in playerFBetActions[p]:
+                    flopBetReacts[a].append(playerFBetActions[p][a] / playerFBetOpps[p])
+                else:
+                    flopBetReacts[a].append(0.)
         else:
-            ffb.append(0)
-            cfb.append(0)
-            rfb.append(0)
+            for a in ['fold','call','raise']:
+                flopBetReacts[a].append(0.)
         if i % 10000000 == 0:
-            outFoldF.write('\n'.join(toStrings(ffb)) + '\n')
-            outCallF.write('\n'.join(toStrings(cfb)) + '\n')
-            outRaiseF.write('\n'.join(toStrings(rfb)) + '\n')
-            ffb,cfb,rfb = [[]]*3
-    outFoldF.write('\n'.join(toStrings(ffb)))
-    outCallF.write('\n'.join(toStrings(cfb)))
-    outRaiseF.write('\n'.join(toStrings(rfb)))
-    ffb,cfb,rfb = [None,None,None]
+            outFoldF.write('\n'.join(toStrings(flopBetReacts['fold'])) + '\n')
+            outCallF.write('\n'.join(toStrings(flopBetReacts['call'])) + '\n')
+            outRaiseF.write('\n'.join(toStrings(flopBetReacts['raise'])) + '\n')
+            flopBetReacts = {'fold':[], 'call':[], 'raise':[]}
+    outFoldF.write('\n'.join(toStrings(flopBetReacts['fold'])))
+    outCallF.write('\n'.join(toStrings(flopBetReacts['call'])))
+    outRaiseF.write('\n'.join(toStrings(flopBetReacts['raise'])))
+    flopBetReacts = None
 ############################################
 # net from last hand, rel start stack
-cur.execute('SELECT ActionID,Player,GameNum,StartStack FROM actions;')
+cur.execute('SELECT Player,GameNum,StartStack FROM actions;')
 with open('NetLastHandRelSS.txt','ab') as outF:
     playerLastStacks = {}
     nets = []
-    for i,p,g,s in cur:
+    for i,(p,g,s) in enumerate(cur):
         if p in playerLastStacks:
             nets.append(s - playerLastStacks[p]['Stack'])
             if g!=playerLastStacks[p]['GameNum']:
                 playerLastStacks[p] = {'GameNum':g, 'Stack':s}
         else:
             playerLastStacks[p] = {'GameNum':g, 'Stack':s}
+            nets.append(0.)
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(nets)) + '\n')
             nets = []
@@ -1043,13 +1085,13 @@ with open('NetLastHandRelSS.txt','ab') as outF:
     nets,playerLastStacks = [None,None]
 ############################################
 # participated in last hand
-cur.execute('SELECT ActionID,Player,GameNum,Action FROM actions;')
+cur.execute('SELECT Player,GameNum,Action FROM actions;')
 with open('PartInLastHand.txt','ab') as outF:
     playerPInLastHand = {}
     playerPInCurrentHand = {}
     plh = []
     lastG = ''
-    for i,p,g,a in cur:
+    for i,(p,g,a) in enumerate(cur):
         # first run, populate lastHand with -1's, populate currentHand with actual
         # on same hand, take lastHand, don't update anything
         # on new hand, take currentHand, assign lastHand = currentHand, populate currentHand with actual
@@ -1061,8 +1103,9 @@ with open('PartInLastHand.txt','ab') as outF:
                 playerPInLastHand[p] = playerPInCurrentHand[p]
                 playerPInCurrentHand[p] = a!='fold'
         else:
-            playerPInLastHand[p] = -1
+            playerPInLastHand[p] = 0
             playerPInCurrentHand[p] = a!='fold'
+            plh.append(0.)
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(plh)) + '\n')
             plh = []
@@ -1070,11 +1113,26 @@ with open('PartInLastHand.txt','ab') as outF:
     outF.write('\n'.join(toStrings(plh)))
     plh,PlayerPInLastHand,playerPInCurrentHand = [None,None,None]
 print "Checkpoint, all column features done:", datetime.now()-startTime
+
+#################### TABLE TXT TO CSV, CSV IMPORT #############################
+# text to CSV
+os.chdir('../table')
+os.system('paste -d, {} > features.csv'.format(
+        ' '.join('{}.txt'.format(fName) for fName in tableCols['tableFeatures'])))
+
+#import CSV to columnFeatures (temp table->remove blinds->real table)
+cur.execute("""LOAD DATA INFILE '{}/features.csv'
+                INTO TABLE tableFeatures
+                FIELDS TERMINATED BY ','
+                OPTIONALLY ENCLOSED BY '"'
+                LINES TERMINATED BY '\\n'
+                ({});""".format(os.getcwd(), ','.join(tableCols['tableFeatures'])))
+print "Checkpoint, tableFeatures table populated:", datetime.now()-startTime
 #################### COLUMN TXT TO CSV, CSV IMPORT ############################
 # text to CSV
 os.chdir('../column')
 os.system('paste -d, {} > features.csv'.format(
-        ' '.join('{}.txt'.format(fName) for fName in tableCols['columnFeatures'])))
+        ' '.join('{}.txt'.format(fName) for fName in tableCols['columnFeaturesTemp'][:-1])))
 
 #import CSV to columnFeatures (temp table->remove blinds->real table)
 cur.execute("""LOAD DATA INFILE '{}/features.csv'
@@ -1082,7 +1140,7 @@ cur.execute("""LOAD DATA INFILE '{}/features.csv'
                 FIELDS TERMINATED BY ','
                 OPTIONALLY ENCLOSED BY '"'
                 LINES TERMINATED BY '\\n'
-                ({});""".format(os.getcwd(), ','.join(tableCols['columnFeaturesTemp'])))
+                ({});""".format(os.getcwd(), ','.join(tableCols['columnFeaturesTemp'][:-1])))
 cur.execute("""INSERT INTO columnFeatures
             SELECT {}
             FROM columnFeaturesTemp AS t
@@ -1091,18 +1149,17 @@ cur.execute("""INSERT INTO columnFeatures
 cur.execute('DROP TABLE columnFeaturesTemp;')
 print "Checkpoint, columnFeatures table populated:", datetime.now()-startTime
 ################## MERGE TABLES TO FEATURESOLD, DELETE ########################
-colsToGrab = ['q.ActionID']
-colsToGrab += ['q.{}'.format(c) for c in tableCols['quickFeatures'][1:]]
-colsToGrab += ['t.{}'.format(c) for c in tableCols['tableFeatures'][1:]]
-colsToGrab += ['c.{}'.format(c) for c in tableCols['columnFeatures'][1:]]
+colsToGrab = ['q.{}'.format(c) for c in tableCols['quickFeatures'][:-1]]
+colsToGrab += ['t.{}'.format(c) for c in tableCols['tableFeatures'][:-1]]
+colsToGrab += ['c.{}'.format(c) for c in tableCols['columnFeatures']]
 cur.execute("""INSERT INTO featuresOld
             SELECT {}
             FROM quickFeatures AS q
             INNER JOIN tableFeatures AS t ON q.ActionID=t.ActionID
             INNER JOIN columnFeatures AS c ON q.ActionID=c.ActionID
             ;""".format(','.join(colsToGrab)))
-for t in tables:
-    cur.execute('DROP TABLE {}Features;'.format(t))
+#for t in tables:
+#    cur.execute('DROP TABLE {}Features;'.format(t))
 print "Checkpoint, quick/table/column to featuresOld:", datetime.now()-startTime
 ########################### CREATE FEATURESNEW ################################
 os.chdir('../new')
@@ -1120,9 +1177,11 @@ for p,v in cur:
 for p in playerVPIP:
     playerVPIP[p] = np.std(playerVPIP[p])
 ## WRITE
-cur.execute('SELECT ActionID,Player FROM actions;')
+cur.execute("""SELECT Player FROM actions AS a
+            INNER JOIN featuresOld AS f ON a.ActionID=f.ActionID;""")
 with open('sdVPIP.txt','ab') as outF:
-    for i,p in cur:
+    for i,p in enumerate(cur):
+        p = p[0]
         sdv.append(playerVPIP[p])
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(sdv)) + '\n')
@@ -1132,17 +1191,23 @@ with open('sdVPIP.txt','ab') as outF:
 ############################################
 # aggression factor overall
 def getAF(r):
-    cur.execute('SELECT {0}BetPct,{0}RaisePct,{0}CallPct FROM featuresOld;'.format(r))
+    cur.execute('SELECT {0}Bet{1},{0}Raise{1},{0}Call{1} FROM featuresOld;'.format(
+            r, '' if r=='All' else 'Pct'))
     with open('{}AggFactor.txt'.format(r),'ab') as outF:
         af = []
         for b,r,c in cur:
-            af.append((b+r)/c)
+            if c==0:
+                af.append(0.)
+            else:
+                af.append(float((b+r)/c))
             if i % 10000000 == 0:
                 outF.write('\n'.join(toStrings(af)) + '\n')
                 af = []
         outF.write('\n'.join(toStrings(af)))
         af = None
 getAF('All')
+# aggression factor preflop
+getAF('Preflop')
 # aggression factor on flop
 getAF('Flop')
 # aggression factor on turn
@@ -1151,8 +1216,10 @@ getAF('Turn')
 getAF('River')
 print "Checkpoint, new features created:", datetime.now()-startTime
 #################### NEW TXT TO CSV, CSV IMPORT ###############################
-os.system('paste -d, {} > ../features.csv'.format(
-        ' '.join('{}.txt'.format(fName) for fName in tableCols['featuresNew'])))
+os.system('cp ../table/ActionID.txt ActionID.txt')
+os.system('cp ../table/Action.txt Action.txt')
+os.system('paste -d, {} > features.csv'.format(
+        ' '.join('{}.txt'.format(fName) for fName in tableCols['featuresNewTemp'])))
 
 # import new features to table
 cur.execute("""LOAD DATA INFILE '{}/features.csv'
@@ -1160,20 +1227,19 @@ cur.execute("""LOAD DATA INFILE '{}/features.csv'
                 FIELDS TERMINATED BY ','
                 OPTIONALLY ENCLOSED BY '"'
                 LINES TERMINATED BY '\\n'
-                ({});""".format(os.getcwd(), ','.join(tableCols['featuresNew'])))
+                ({});""".format(os.getcwd(), ','.join(tableCols['featuresNewTemp'])))
 cur.execute("""INSERT INTO featuresNew
             SELECT {}
             FROM featuresNewTemp
             WHERE Action!="blind" AND Action!="deadblind"
             ;""".format(','.join(tableCols['featuresNew'])))
-cur.execute('DROP TABLE newFeaturesTemp;')
+cur.execute('DROP TABLE featuresNewTemp;')
 print "Checkpoint, newFeatures populated:", datetime.now()-startTime
 ################## MERGE OLD AND NEW TO FEATURES, DELETE ######################
-colsToGrab = ['o.ActionID']
-colsToGrab += ['o.{}'.format(c) for c in tableCols['featuresOld'][1:]]
-colsToGrab += ['n.{}'.format(c) for c in tableCols['featuresNew'][1:]]
+colsToGrab = ['o.{}'.format(c) for c in tableCols['featuresOld'][:-1]]
+colsToGrab += ['n.{}'.format(c) for c in tableCols['featuresNew'][:-1]]
 cur.execute("""INSERT INTO features
-            SELECT {}
+            SELECT {},NULL
             FROM featuresOld AS o
             INNER JOIN featuresNew AS n ON o.ActionID=n.ActionID
             ;""".format(','.join(colsToGrab)))
