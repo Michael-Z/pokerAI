@@ -8,12 +8,10 @@ from bisect import bisect_left
 import codecs
 import multiprocessing
 import MySQLdb
-import pandas as pd
 import csv
 import itertools
 import random
 from uuid import uuid4
-import sys
 
 errors = []
 
@@ -1557,6 +1555,7 @@ def getData(nFiles, mp=True, useExamples=False):
 
 # if testing, get example files; if not, do all files
 testing = False
+testSize = 33
 mp = True
 startTime = datetime.datetime.now()
 
@@ -1568,6 +1567,7 @@ if testing:
         allMatches = [f for f in allFiles if f.find("/"+sr)>=0 and f.find("/"+st+"/")>=0]
         if allMatches:
             examples.append(random.choice(allMatches))
+    examples = examples[:testSize]
     getData(len(examples), mp=mp, useExamples=True)
 else:
     getData(len(allFiles))
