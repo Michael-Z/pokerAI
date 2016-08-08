@@ -1,4 +1,3 @@
-import sys
 import os
 import shutil
 import gc
@@ -6,9 +5,7 @@ import multiprocessing
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from bisect import bisect_left
-import csv
-from itertools import izip, product, combinations
+from itertools import product, combinations
 import MySQLdb
 
 ######################### PREP AND UTILITY FUNCTIONS ##########################
@@ -18,6 +15,12 @@ def toStrings(l):
     if type(l[0])==float:
         return [str(round(x,3)) for x in l]
     return [str(x) for x in l]
+
+# split list evenly
+def chunks(l, n):
+    breakPoints = range(0, len(l), len(l)/n) + [len(l)]
+    return [(i, l[breakPoints[i]:breakPoints[i+1]])
+                for i in range(len(breakPoints)-1)]
 
 # get DB password from file
 with open('pwd.txt') as f:
@@ -266,7 +269,7 @@ def getCols(poker):
 for row in cur:
     poker.append(row)
     gamesInChunk.add(row[0])
-    if len(gamesInChunk) % 69768 == 0:
+    if len(gamesInChunk) % 100000 == 0:
         getCols(poker)
         poker = []
         gamesInChunk = set()
@@ -282,10 +285,10 @@ cur.execute("""SELECT {}
             FROM actions AS a
             INNER JOIN games AS g
             ON a.GameNum=g.GameNum;""".format('a.'+','.join(cols)))
-poker = []
-gamesInChunk = set()
-
-def getCols(poker):
+            
+def getCols(tup):
+    ii,poker = tup
+    
     # initialize
     poker = pd.DataFrame(poker, columns=cols)
     pokerWOB = poker.ix[~(poker.Action.isin(['blind','deadblind']))]
@@ -342,6 +345,7 @@ def getCols(poker):
             windowEnd += 1
         # other stacks
         stacks = [(s-currentStack)/bb for s in otherStacks]
+        if len(stacks)==0: print ii,i,len(allDF)
         # writing
         newCols['EffectiveStack'].append(min([currentStack,maxOtherStack]))
         newCols['LastToAct'].append(min(ap))
@@ -349,7 +353,7 @@ def getCols(poker):
         newCols['SDOtherStackRelBBRelSelf'].append(round(np.std(stacks),2))
         newCols['MinOtherStackRelBBRelSelf'].append(round(np.min(stacks),2))
         newCols['MaxOtherStackRelBBRelSelf'].append(round(np.max(stacks),2))
-    
+        
     # last to act stack (separate from rest due to conditions on while)
     ltasDF = zip(poker.GameNum, poker.CurrentStack, 
                  poker.SeatRelDealer, newCols['LastToAct'])
@@ -383,18 +387,68 @@ def getCols(poker):
 
     # write columns to text
     for c,v in newCols.iteritems():
-        with open('{}.txt'.format(c),'ab') as f:
+        with open('{}--{}.txt'.format(c,ii),'w') as f:
             f.write('\n'.join(toStrings(v)) + '\n')
+    
+    return len(newCols[newCols.keys()[0]])
 
 # populate chunk; call getCols on chunk; empty chunk; repeat
+# within each chunk: populate correct subchunk, thread subchunks
+gamesPerChunk = 8000
+gamesPerSubchunk = 1000
+subchunks = gamesPerChunk / gamesPerSubchunk
+subchunks += gamesPerChunk % gamesPerSubchunk != 0
+mp = True
+
+poker = [[] for i in range(subchunks)]
+gamesInChunk = set()
+subChunkInd = 0
+lastGame = ''
+finalGame = ''
+finalGameFlag = False
+chunksDone = 0
 for row in cur:
-    poker.append(row)
+    if len(gamesInChunk) % gamesPerChunk == 0 and len(gamesInChunk) > 0:
+        if row[0]!=finalGame and not finalGameFlag:
+            finalGame = row[0]
+            finalGameFlag = True
+        elif finalGameFlag:
+            if row[0]!=finalGame:
+                # thread subchunks
+                if mp:
+                    p = multiprocessing.Pool(min([8, subchunks]))
+                    p.map_async(getCols, enumerate(poker, chunksDone*(subchunks+2)))
+                    p.close()
+                    p.join()
+                else:
+                    map(getCols, enumerate(poker, chunksDone*(subchunks+2)))
+                # reset everything
+                poker = [[] for i in range(subchunks)]
+                subChunkInd = 0
+                gamesInChunk = set()
+                lastGame = ''
+                finalGame = ''
+                finalGameFlag = False
+                chunksDone += 1
+    if len(gamesInChunk) % gamesPerSubchunk == 0 and len(gamesInChunk) > 0  and \
+            row[0]!=lastGame:
+        subChunkInd += 1
     gamesInChunk.add(row[0])
-    if len(gamesInChunk) % 69768 == 0:
-        getCols(poker)
-        poker = []
-        gamesInChunk = set()
-getCols(poker)
+    poker[subChunkInd].append(row)
+    lastGame = row[0]
+
+pokerFilled = 0
+while pokerFilled<len(poker) and len(poker[pokerFilled])>0:
+    pokerFilled += 1
+    
+if mp:
+    p = multiprocessing.Pool(min([8, subchunks]))
+    p.map_async(getCols, enumerate(poker[:pokerFilled], chunksDone*(subchunks+2)))
+    p.close()
+    p.join()
+else:
+    map(getCols, enumerate(poker[:pokerFilled], chunksDone*(subchunks+2)))
+
 del poker,gamesInChunk
 
 print "Checkpoint, all looping features done:", datetime.now()-startTime
@@ -536,7 +590,7 @@ def getCols(poker):
 for row in cur:
     poker.append(row)
     gamesInChunk.add(row[0])
-    if len(gamesInChunk) % 69768 == 0:
+    if len(gamesInChunk) % 100000 == 0:
         getCols(poker)
         poker = []
         gamesInChunk = set()
@@ -1115,8 +1169,15 @@ with open('PartInLastHand.txt','ab') as outF:
 print "Checkpoint, all column features done:", datetime.now()-startTime
 
 #################### TABLE TXT TO CSV, CSV IMPORT #############################
-# text to CSV
 os.chdir('../table')
+# concat threaded features
+threadedFeatures = set(f[:f.find('--')] for f in os.listdir(os.getcwd())
+                    if f.find('--')>=0)
+for g in threadedFeatures:
+    os.system('cat {0}--*.txt > {0}.txt'.format(g))
+    os.system('rm {0}--*.txt'.format(g))
+
+# text to CSV
 os.system('paste -d, {} > features.csv'.format(
         ' '.join('{}.txt'.format(fName) for fName in tableCols['tableFeatures'])))
 
@@ -1158,15 +1219,15 @@ cur.execute("""INSERT INTO featuresOld
             INNER JOIN tableFeatures AS t ON q.ActionID=t.ActionID
             INNER JOIN columnFeatures AS c ON q.ActionID=c.ActionID
             ;""".format(','.join(colsToGrab)))
-#for t in tables:
-#    cur.execute('DROP TABLE {}Features;'.format(t))
+for t in tables:
+    cur.execute('DROP TABLE {}Features;'.format(t))
 print "Checkpoint, quick/table/column to featuresOld:", datetime.now()-startTime
 ########################### CREATE FEATURESNEW ################################
 os.chdir('../new')
 # sd of VPIP for each player
 ## GET
 cur.execute("""SELECT a.Player,f.VPIP FROM featuresOld AS f
-            INNER JOIN actions AS a ON a.ActionID=f.ActionID""")
+            INNER JOIN actions AS a ON a.ActionID=f.ActionID;""")
 sdv = []
 playerVPIP = {}
 for p,v in cur:
