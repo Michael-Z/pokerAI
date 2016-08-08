@@ -394,8 +394,8 @@ def getCols(tup):
 
 # populate chunk; call getCols on chunk; empty chunk; repeat
 # within each chunk: populate correct subchunk, thread subchunks
-gamesPerChunk = 8000
-gamesPerSubchunk = 1000
+gamesPerChunk = 24000
+gamesPerSubchunk = 3000
 subchunks = gamesPerChunk / gamesPerSubchunk
 subchunks += gamesPerChunk % gamesPerSubchunk != 0
 mp = True
