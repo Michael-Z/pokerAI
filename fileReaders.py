@@ -292,6 +292,8 @@ def readABSfile(filename):
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
                                   'Winnings': round(winnings[maybePlayerName],2),
+                                  'SeatRelDealer':(seat-dealer)*(seat>dealer)+
+                                              (dealer-seat)*(dealer>seat),
                                   'Source':'abs'
                                   }
                         for ii in [1,2]:
@@ -305,6 +307,8 @@ def readABSfile(filename):
                                 newRow['Board'+str(ii)] = deck10.index(board[ii-1])
                             else:
                                 newRow['Board'+str(ii)] = -1
+                        for act in actions[2:]:
+                            newRow['is{}'.format(act)] = int(a==act)
                         data.append(newRow)
                         roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -569,6 +573,8 @@ def readFTPfile(filename):
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
                                   'Winnings': round(winnings[maybePlayerName],2),
+                                  'SeatRelDealer':(seat-dealer)*(seat>dealer)+
+                                              (dealer-seat)*(dealer>seat),
                                   'Source':'ftp'
                                   }
                         for ii in [1,2]:
@@ -582,6 +588,8 @@ def readFTPfile(filename):
                                 newRow['Board'+str(ii)] = deckT.index(board[ii-1])
                             else:
                                 newRow['Board'+str(ii)] = -1
+                        for act in actions[2:]:
+                            newRow['is{}'.format(act)] = int(a==act)
                         data.append(newRow)
                         roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -875,6 +883,8 @@ def readONGfile(filename):
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
                                   'Winnings': round(winnings[maybePlayerName],2),
+                                  'SeatRelDealer':(seat-dealer)*(seat>dealer)+
+                                              (dealer-seat)*(dealer>seat),
                                   'Source':'ong'
                                   }
                         for ii in [1,2]:
@@ -888,6 +898,8 @@ def readONGfile(filename):
                                 newRow['Board'+str(ii)] = deckT.index(board[ii-1])
                             else:
                                 newRow['Board'+str(ii)] = -1
+                        for act in actions[2:]:
+                            newRow['is{}'.format(act)] = int(a==act)
                         data.append(newRow)
                         roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -1157,6 +1169,8 @@ def readPSfile(filename):
                                   'LenBoard': lenBoard,
                                   'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
                                   'Winnings': round(winnings[maybePlayerName],2),
+                                  'SeatRelDealer':(seat-dealer)*(seat>dealer)+
+                                              (dealer-seat)*(dealer>seat),
                                   'Source':'ps'
                                   }
                         for ii in [1,2]:
@@ -1170,6 +1184,8 @@ def readPSfile(filename):
                                 newRow['Board'+str(ii)] = deckT.index(board[ii-1])
                             else:
                                 newRow['Board'+str(ii)] = -1
+                        for act in actions[2:]:
+                            newRow['is{}'.format(act)] = int(a==act)
                         data.append(newRow)
                         roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -1458,6 +1474,8 @@ def readPTYfile(filename):
                               'LenBoard': lenBoard,
                               'InvestedThisRound': round(roundInvestments[maybePlayerName] - amt,2),
                               'Winnings': round(winnings[maybePlayerName],2),
+                              'SeatRelDealer':(seat-dealer)*(seat>dealer)+
+                                              (dealer-seat)*(dealer>seat),
                               'Source':'pty'
                               }
                     for ii in [1,2]:
@@ -1471,6 +1489,8 @@ def readPTYfile(filename):
                             newRow['Board'+str(ii)] = deckT.index(board[ii-1])
                         else:
                             newRow['Board'+str(ii)] = -1
+                    for act in actions[2:]:
+                        newRow['is{}'.format(act)] = int(a==act)
                     data.append(newRow)
                     roundActionNum += 1
             if data[-1]['RoundActionNum']==1:
@@ -1516,7 +1536,9 @@ fields = {'games': ['GameNum','Source','Date','Time','SmallBlind','BigBlind','Ta
           'actions': ['GameNum','Player','Action','SeatNum','RelSeatNum','Round',
                       'RoundActionNum','StartStack','CurrentStack','Amount',
                       'AllIn','CurrentBet','CurrentPot','InvestedThisRound',
-                      'NumPlayersLeft','Winnings','HoleCard1','HoleCard2'],
+                      'NumPlayersLeft','Winnings','HoleCard1','HoleCard2',
+                      'SeatRelDealer','isfold','ischeck','iscall','isbet',
+                      'israise'],
           'boards': ['GameNum','LenBoard'] + ['Board'+str(i) for i in range(1,6)]}
 allFields = list(set(c for l in fields.values() for c in l))
 # +1 on fieldInds because in bash fields are indexed starting at 1
@@ -1554,8 +1576,8 @@ def getData(nFiles, mp=True, useExamples=False):
     print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
-testing = False
-testSize = 33
+testing = True
+testSize = 3
 mp = True
 startTime = datetime.datetime.now()
 
@@ -1729,23 +1751,5 @@ cursor.execute("""INSERT INTO boards
                                 GROUP BY GameNum)
             ;""")
 cursor.execute('DROP TABLE boardsTemp;')
-
-# add helper columns to actions
-for a in ['fold','check','call','bet','raise']:
-    try:
-        cursor.execute(
-        'UPDATE actions SET is{0} = (SELECT Action="{0}");'.format(
-                a))
-        db.commit()
-    except Exception:
-        db.rollback()
-try:
-    cursor.execute("""UPDATE actions AS a INNER JOIN games AS g 
-        ON a.GameNum=g.GameNum SET a.SeatRelDealer = (SELECT 
-        (a.SeatNum-g.Dealer)*(a.SeatNum>g.Dealer)+
-        (g.Dealer-a.SeatNum)*(g.Dealer>a.SeatNum));""")
-    db.commit()
-except Exception:
-    db.rollback()
 
 print "Final runtime of SQL:", datetime.datetime.now() - startTime
