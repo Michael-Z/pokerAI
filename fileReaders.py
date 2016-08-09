@@ -13,8 +13,6 @@ import itertools
 import random
 from uuid import uuid4
 
-errors = []
-
 locale.setlocale(locale.LC_NUMERIC, 'en_US.utf8')
 
 cardNumRangeT = [str(i) for i in range(2,10)] + ['T','J','Q','K','A']
@@ -267,7 +265,7 @@ def readABSfile(filename):
                             assert a!='bet', "illegal action"
                         else:
                             assert a!='call', "illegal action"
-                        # consistent formatting for round
+                        assert stacks[maybePlayerName]+amt >= 0
                         newRow = {'GameNum':stage,
                                   'RoundActionNum':roundActionNum,
                                   'SeatNum':seat,
@@ -549,6 +547,7 @@ def readFTPfile(filename):
                             assert a!='bet', "illegal action"
                         else:
                             assert a!='call', "illegal action"
+                        assert stacks[maybePlayerName]+amt >= 0
                         newRow = {'GameNum':stage,
                                   'RoundActionNum':roundActionNum,
                                   'SeatNum':seat,
@@ -859,6 +858,7 @@ def readONGfile(filename):
                             assert a!='bet', "illegal action"
                         else:
                             assert a!='call', "illegal action"
+                        assert stacks[maybePlayerName]+amt >= 0
                         newRow = {'GameNum':stage,
                                   'RoundActionNum':roundActionNum,
                                   'SeatNum':seat,
@@ -1145,6 +1145,7 @@ def readPSfile(filename):
                             assert a!='bet', "illegal action"
                         else:
                             assert a!='call', "illegal action"
+                        assert stacks[maybePlayerName]+amt >= 0
                         newRow = {'GameNum':stage,
                                   'RoundActionNum':roundActionNum,
                                   'SeatNum':seat,
@@ -1450,6 +1451,7 @@ def readPTYfile(filename):
                         assert a!='bet', "illegal action"
                     else:
                         assert a!='call', "illegal action"
+                    assert stacks[maybePlayerName]+amt >= 0
                     newRow = {'GameNum':stage,
                               'RoundActionNum':roundActionNum,
                               'SeatNum':seat,
@@ -1576,7 +1578,7 @@ def getData(nFiles, mp=True, useExamples=False):
     print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
-testing = True
+testing = False
 testSize = 3
 mp = True
 startTime = datetime.datetime.now()

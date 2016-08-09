@@ -55,7 +55,7 @@ datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
              'AggressorPos': 'tinyint(2)','AllAggFactor': 'decimal(8,4)',
              'AllBet': 'smallint(5)','AllCall': 'smallint(5)',
              'AllCheck': 'smallint(5)','AllFold': 'smallint(5)',
-             'AllRaise': 'smallint(5)','AmountToCall': 'decimal(10,2)',
+             'AllRaise': 'smallint(5)','AmountToCall_rbb': 'decimal(10,2)',
              'AvgCardRankFlop': 'decimal(4,2)','AvgCardRankRiver': 'decimal(4,2)',
              'AvgCardRankTurn': 'decimal(4,2)','BetRiverPct': 'decimal(4,3)',
              'BetsRaisesF': 'tinyint(2)','BetsRaisesGame': 'tinyint(2)',
@@ -63,7 +63,7 @@ datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
              'BetsRaisesT': 'tinyint(2)','BigBlind': 'decimal(4,2)',
              'CBisCheckRaise': 'tinyint(1)','CallCBetPct': 'decimal(4,3)',
              'CallFlopBetPct': 'decimal(4,3)','CallOrRaisePFRPct': 'decimal(4,3)',
-             'ContBetPct': 'decimal(4,3)','CurrentPot': 'decimal(10,2)',
+             'ContBetPct': 'decimal(4,3)','CurrentPot_rbb': 'decimal(10,2)',
              'ESvsAgg': 'decimal(10,2)','EffectiveStack': 'decimal(10,2)',
              'FacingBet': 'tinyint(2)','FinalPotLastHandTable': 'decimal(10,2)',
              'FlopAggFactor': 'decimal(8,4)','FlopBetPct': 'decimal(4,3)',
@@ -76,10 +76,10 @@ datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
              'IsAgg': 'tinyint(1)','IsBB': 'tinyint(1)',
              'IsSB': 'tinyint(1)','LastAction': 'varchar(10)',
              'LastToAct': 'tinyint(2)','LastToActStack': 'decimal(10,2)',
-             'MaxOtherStackRelBBRelSelf': 'decimal(6,2)',
-             'MeanOtherStackRelBBRelSelf': 'decimal(6,2)',
-             'MinOtherStackRelBBRelSelf': 'decimal(6,2)',
-             'NetAtTable': 'decimal(10,2)','NetLastHandRelSS': 'decimal(8,2)',
+             'MaxOtherStack_rbb_rs': 'decimal(6,2)',
+             'MeanOtherStack_rbb_rs': 'decimal(6,2)',
+             'MinOtherStack_rbb_rs': 'decimal(6,2)',
+             'NetAtTable': 'decimal(10,2)','NetLastHand_rss': 'decimal(8,2)',
              'NumChecksGame': 'tinyint(2)','NumFaceCardsFlop': 'tinyint(2)',
              'NumFaceCardsRiver': 'tinyint(2)','NumFaceCardsTurn': 'tinyint(2)',
              'NumPairsFlop': 'tinyint(2)','NumPairsRiver': 'tinyint(2)',
@@ -95,8 +95,8 @@ datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
              'RiverCallPct': 'decimal(4,3)','RiverCheckPct': 'decimal(4,3)',
              'RiverFoldPct': 'decimal(4,3)','RiverOverCard': 'tinyint(1)',
              'RiverRaisePct': 'decimal(4,3)','Round': 'varchar(10)',
-             'SDOtherStackRelBBRelSelf': 'decimal(6,2)',
-             'SeatRelDealerRelNP': 'tinyint(2)',
+             'SDOtherStack_rbb_rs': 'decimal(6,2)',
+             'SeatRelDealer_rnp': 'tinyint(2)',
              'SeeSDPct': 'decimal(4,3)','StackToPot': 'decimal(8,2)',
              'ThreeBetPct': 'decimal(4,3)','ThreeOrMoreToStraightRiver': 'tinyint(1)',
              'ThreeOrMoreToStraightTurn': 'tinyint(1)',
@@ -115,7 +115,7 @@ datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
 
 tableCols = {
     'quickFeatures': ['Action', 'Round', 'FacingBet',
-          'AmountToCall', 'CurrentPot', 'NumPlayersStart',
+          'AmountToCall_rbb', 'CurrentPot_rbb', 'NumPlayersStart',
           'NumPlayersLeft', 'BigBlind','StackToPot', 'IsSB', 'IsBB', 
           'InvestedThisGame', 'ActionID'],
     'tableFeatures': ['NumChecksGame', 'LastToAct', 
@@ -130,10 +130,10 @@ tableCols = {
           'TurnOverCard', 'RiverOverCard', 'NumFaceCardsFlop', 
           'NumFaceCardsTurn', 'NumFaceCardsRiver', 'AvgCardRankFlop', 
           'AvgCardRankTurn', 'AvgCardRankRiver', 'TurnBrick', 
-          'RiverBrick', 'MeanOtherStackRelBBRelSelf', 
-          'SDOtherStackRelBBRelSelf', 'MaxOtherStackRelBBRelSelf', 
-          'MinOtherStackRelBBRelSelf', 'AggressorPos', 'AggInPosVsMe', 
-          'AggStack', 'IsAgg', 'SeatRelDealerRelNP', 'EffectiveStack', 
+          'RiverBrick', 'MeanOtherStack_rbb_rs', 
+          'SDOtherStack_rbb_rs', 'MaxOtherStack_rbb_rs', 
+          'MinOtherStack_rbb_rs', 'AggressorPos', 'AggInPosVsMe', 
+          'AggStack', 'IsAgg', 'SeatRelDealer_rnp', 'EffectiveStack', 
           'ESvsAgg', 'ActionID'],
     'columnFeaturesTemp': ['Action', 'LastAction', 'AllFold', 
           'AllCheck', 'AllCall', 'AllBet', 'AllRaise', 'PreflopFoldPct', 
@@ -145,7 +145,7 @@ tableCols = {
           'WinWhenSeeFlopPct', 'WinWithoutSDPct', 'WinAtSDPct', 'ContBetPct', 
           'BetRiverPct', 'CallOrRaisePFRPct', 'FoldToCBetPct', 'CallCBetPct', 
           'RaiseCBetPct', 'FoldToFlopBetPct', 'CallFlopBetPct', 'RaiseFlopBetPct', 
-          'NetLastHandRelSS', 'PartInLastHand', 'ActionID'],
+          'NetLastHand_rss', 'PartInLastHand', 'ActionID'],
     'featuresNewTemp': ['Action','sdVPIP', 'AllAggFactor','PreflopAggFactor', 'FlopAggFactor',
                     'TurnAggFactor', 'RiverAggFactor', 'ActionID']}
 
@@ -159,7 +159,7 @@ tableCols['featuresOld'] = tableCols['quickFeatures'][:-1] + \
                             tableCols['tableFeatures'][:-1] + \
                             tableCols['columnFeaturesTemp'][1:]
 
-tableCols['features'] = tableCols['featuresOld'] + tableCols['featuresNew'][:-1]
+tableCols['features'] = tableCols['featuresOld'][:-1] + tableCols['featuresNew']
 
 def createTable(tableName, pk = True):
     cols = tableCols[tableName]
@@ -183,12 +183,12 @@ print "Checkpoint, tables created:", datetime.now()-startTime
 
 ######################## POPULATE QUICK FEATURES ##############################
 cur.execute("""INSERT INTO quickFeatures
-            (Action,Round,FacingBet,AmountToCall,CurrentPot,
+            (Action,Round,FacingBet,AmountToCall_rbb,CurrentPot_rbb,
              NumPlayersStart,NumPlayersLeft,BigBlind,StackToPot,
              IsSB,IsBB,InvestedThisGame,ActionID)
             SELECT a.Action,a.Round,a.CurrentBet>a.InvestedThisRound,
-                    a.CurrentBet-a.InvestedThisRound,a.CurrentPot,
-                    g.NumPlayers,a.NumPlayersLeft,g.BigBlind,
+                    ROUND((a.CurrentBet-a.InvestedThisRound) / g.BigBlind,2),
+                    a.CurrentPot,g.NumPlayers,a.NumPlayersLeft,g.BigBlind,
                     ROUND(a.CurrentStack / a.CurrentPot,2), a.SeatRelDealer=1,
                     a.SeatRelDealer=2, a.StartStack - a.CurrentStack,
                     a.ActionID
@@ -230,7 +230,7 @@ def getCols(poker):
     newCols['BetsRaisesGame'] = pokerWOB.groupby('GameNum').BetOrRaise.cumsum()
     newCols['NumChecksGame'] = pokerWOB.groupby('GameNum').check.cumsum()
     
-    newCols['SeatRelDealerRelNP'] = pokerWOB.SeatRelDealer / pokerWOB.NumPlayers
+    newCols['SeatRelDealer_rnp'] = pokerWOB.SeatRelDealer / pokerWOB.NumPlayers
     
     agg = poker.Action.isin(['deadblind','blind','bet','raise']).astype(bool)
     pokerWOB['AggressorPos'] = (poker.SeatRelDealer*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
@@ -293,14 +293,14 @@ def getCols(tup):
     poker = pd.DataFrame(poker, columns=cols)
     pokerWOB = poker.ix[~(poker.Action.isin(['blind','deadblind']))]
     newColNames = ['EffectiveStack','LastToAct','LastToActStack',
-                   'FinalPotLastHandTable','MeanOtherStackRelBBRelSelf',
-                   'SDOtherStackRelBBRelSelf','MinOtherStackRelBBRelSelf',
-                   'MaxOtherStackRelBBRelSelf']
+                   'FinalPotLastHandTable','MeanOtherStack_rbb_rs',
+                   'SDOtherStack_rbb_rs','MinOtherStack_rbb_rs',
+                   'MaxOtherStack_rbb_rs']
     newCols = {c:[] for c in newColNames}
     
     # all of them at once
     allDF = zip(*[poker[c] for c in poker.columns])
-    tableLastHandPot = {}
+    tableLastHandPot = {} # final pot
     for i,(gameNum,rd,player,seat,action,
            currentStack,table,currentPot,bb) in enumerate(allDF):
         # prep
@@ -308,7 +308,6 @@ def getCols(tup):
         windowEnd = i
         maxOtherStack = 0 # effective stack
         ap = [] # last to act
-        tableLastHandPot = {} # final pot
         otherStacks = [] # relbb
         m = len(allDF) # all
         
@@ -345,14 +344,13 @@ def getCols(tup):
             windowEnd += 1
         # other stacks
         stacks = [(s-currentStack)/bb for s in otherStacks]
-        if len(stacks)==0: print ii,i,len(allDF)
         # writing
         newCols['EffectiveStack'].append(min([currentStack,maxOtherStack]))
         newCols['LastToAct'].append(min(ap))
-        newCols['MeanOtherStackRelBBRelSelf'].append(round(np.mean(stacks),2))
-        newCols['SDOtherStackRelBBRelSelf'].append(round(np.std(stacks),2))
-        newCols['MinOtherStackRelBBRelSelf'].append(round(np.min(stacks),2))
-        newCols['MaxOtherStackRelBBRelSelf'].append(round(np.max(stacks),2))
+        newCols['MeanOtherStack_rbb_rs'].append(round(np.mean(stacks),2))
+        newCols['SDOtherStack_rbb_rs'].append(round(np.std(stacks),2))
+        newCols['MinOtherStack_rbb_rs'].append(round(np.min(stacks),2))
+        newCols['MaxOtherStack_rbb_rs'].append(round(np.max(stacks),2))
         
     # last to act stack (separate from rest due to conditions on while)
     ltasDF = zip(poker.GameNum, poker.CurrentStack, 
@@ -398,7 +396,7 @@ gamesPerChunk = 24000
 gamesPerSubchunk = 3000
 subchunks = gamesPerChunk / gamesPerSubchunk
 subchunks += gamesPerChunk % gamesPerSubchunk != 0
-mp = True
+mp = False
 
 poker = [[] for i in range(subchunks)]
 gamesInChunk = set()
@@ -468,14 +466,16 @@ def getCols(poker):
     poker = pd.DataFrame(poker, columns=cols)
     pokerWOB = poker.ix[~(poker.Action.isin(['deadblind','blind']))]
     boardDF = pokerWOB[cols[:-1]]
-    boardSuits = boardDF%4
-    boardRanks = boardDF%13
+    boardSuits = pd.DataFrame(np.where(boardDF==-1,-1,boardDF%4),
+                    columns=cols[:-1])
+    boardRanks = pd.DataFrame(np.where(boardDF==-1,-1,boardDF%13),
+                    columns=cols[:-1])
     
     # build DFs of rank counts and suit counts (nrow*13 and nrow*4 dims)
     rankCountsFlop, rankCountsTurn, rankCountsRiver = [{},{},{}]
     for r in xrange(13):
-        rankCountsFlop[r] = list((boardRanks.ix[:,:2]==r).sum(axis=1))
-        rankCountsTurn[r] = list((boardRanks.ix[:,:3]==r).sum(axis=1))
+        rankCountsFlop[r] = list((boardRanks.ix[:,:3]==r).sum(axis=1))
+        rankCountsTurn[r] = list((boardRanks.ix[:,:4]==r).sum(axis=1))
         rankCountsRiver[r] = list((boardRanks==r).sum(axis=1))
     rankCountsFlop = pd.DataFrame(rankCountsFlop)
     rankCountsTurn = pd.DataFrame(rankCountsTurn)
@@ -483,8 +483,8 @@ def getCols(poker):
     
     suitCountsFlop, suitCountsTurn, suitCountsRiver = [{},{},{}]
     for r in xrange(13):
-        suitCountsFlop[r] = list((boardSuits.ix[:,:2]==r).sum(axis=1))
-        suitCountsTurn[r] = list((boardSuits.ix[:,:3]==r).sum(axis=1))
+        suitCountsFlop[r] = list((boardSuits.ix[:,:3]==r).sum(axis=1))
+        suitCountsTurn[r] = list((boardSuits.ix[:,:4]==r).sum(axis=1))
         suitCountsRiver[r] = list((boardSuits==r).sum(axis=1))
     suitCountsFlop = pd.DataFrame(suitCountsFlop)
     suitCountsTurn = pd.DataFrame(suitCountsTurn)
@@ -513,13 +513,13 @@ def getCols(poker):
                             ((suitCountsRiver==3).sum(axis=1)>0)).astype(int)
     
     # High card on each street
-    newCols['HighCardFlop'] = boardRanks.ix[:,:2].max(axis=1)
-    newCols['HighCardTurn'] = boardRanks.ix[:,:3].max(axis=1)
+    newCols['HighCardFlop'] = boardRanks.ix[:,:3].max(axis=1)
+    newCols['HighCardTurn'] = boardRanks.ix[:,:4].max(axis=1)
     newCols['HighCardRiver'] = boardRanks.max(axis=1)
     
     # Range of cards on each street
-    newCols['RangeFlop'] = pd.Series(newCols['HighCardFlop']) - boardRanks.ix[:,:2].min(axis=1)
-    newCols['RangeTurn'] = pd.Series(newCols['HighCardTurn']) - boardRanks.ix[:,:3].min(axis=1)
+    newCols['RangeFlop'] = pd.Series(newCols['HighCardFlop']) - boardRanks.ix[:,:3].min(axis=1)
+    newCols['RangeTurn'] = pd.Series(newCols['HighCardTurn']) - boardRanks.ix[:,:4].min(axis=1)
     newCols['RangeRiver'] = pd.Series(newCols['HighCardRiver']) - boardRanks.min(axis=1)
     
     # build DF of card ranks differences (1-2, 1-3, ..., 4-5) for straight draw finding
@@ -799,16 +799,16 @@ playerGameSeesSD = {}
 for p,g,c in cur:
     if p in playerGameSeesSD:
         if not g in playerGameSeesSD[p]:
-                playerGameSeesSD[p][g] = c!='-1'
+                playerGameSeesSD[p][g] = c!=-1
     else:
-        playerGameSeesSD[p] = {g: c!='-1'}
+        playerGameSeesSD[p] = {g: c!=-1}
 ## WRITE
 cur.execute('SELECT Player FROM actions;')
 with open('SeeSDPct.txt','ab') as outF:
     for i,p in enumerate(cur):
         p = p[0]
         allG = playerGameSeesSD[p].values()
-        ssPct.append(np.mean(allG))
+        ssPct.append(round(np.mean(allG),3))
         if i % 10000000 == 0:
             outF.write('\n'.join(toStrings(ssPct)) + '\n')
             ssPct = []
@@ -855,12 +855,14 @@ for i,(p,g,c,w) in enumerate(cur):
     if w:
         if p in playerWins:
             playerWins[p].add(g)
-            if c=='-1':
+            if c==-1:
                 playerWinsWSD[p].add(g)
         else:
             playerWins[p] = {g}
-            if c=='-1':
+            if c==-1:
                 playerWinsWSD[p] = {g}
+            else:
+                playerWinsWSD[p] = set()
 ## WRITE
 cur.execute('SELECT Player FROM actions;')
 with open('WinWithoutSDPct.txt','ab') as outF:
@@ -892,6 +894,8 @@ for p,g,c,w in cur:
             playerShowdowns[p] = {g}
             if w:
                 playerWinsAtSD[p] = {g}
+            else:
+                playerWinsAtSD[p] = set()
 ## WRITE
 cur.execute('SELECT Player FROM actions;')
 with open('WinAtSDPct.txt','ab') as outF:
@@ -1121,7 +1125,7 @@ with open('FoldToFlopBetPct.txt','ab') as outFoldF, \
 ############################################
 # net from last hand, rel start stack
 cur.execute('SELECT Player,GameNum,StartStack FROM actions;')
-with open('NetLastHandRelSS.txt','ab') as outF:
+with open('NetLastHand_rss.txt','ab') as outF:
     playerLastStacks = {}
     nets = []
     for i,(p,g,s) in enumerate(cur):
@@ -1251,10 +1255,10 @@ with open('sdVPIP.txt','ab') as outF:
     sdv,playerVPIP = [None,None]
 ############################################
 # aggression factor overall
-def getAF(r):
+def getAF(rd):
     cur.execute('SELECT {0}Bet{1},{0}Raise{1},{0}Call{1} FROM featuresOld;'.format(
-            r, '' if r=='All' else 'Pct'))
-    with open('{}AggFactor.txt'.format(r),'ab') as outF:
+            rd, '' if rd=='All' else 'Pct'))
+    with open('{}AggFactor.txt'.format(rd),'ab') as outF:
         af = []
         for b,r,c in cur:
             if c==0:
@@ -1295,7 +1299,7 @@ cur.execute("""INSERT INTO featuresNew
             WHERE Action!="blind" AND Action!="deadblind"
             ;""".format(','.join(tableCols['featuresNew'])))
 cur.execute('DROP TABLE featuresNewTemp;')
-print "Checkpoint, newFeatures populated:", datetime.now()-startTime
+print "Checkpoint, featuresNew populated:", datetime.now()-startTime
 ################## MERGE OLD AND NEW TO FEATURES, DELETE ######################
 colsToGrab = ['o.{}'.format(c) for c in tableCols['featuresOld'][:-1]]
 colsToGrab += ['n.{}'.format(c) for c in tableCols['featuresNew'][:-1]]
@@ -1304,6 +1308,6 @@ cur.execute("""INSERT INTO features
             FROM featuresOld AS o
             INNER JOIN featuresNew AS n ON o.ActionID=n.ActionID
             ;""".format(','.join(colsToGrab)))
-cur.execute('DROP TABLE featuresOld;')
-cur.execute('DROP TABLE featuresNew;')
-print "END! features populated:", datetime.now()-startTime
+#cur.execute('DROP TABLE featuresOld;')
+#cur.execute('DROP TABLE featuresNew;')
+#print "END! features populated:", datetime.now()-startTime
