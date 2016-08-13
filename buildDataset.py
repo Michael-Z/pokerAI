@@ -275,7 +275,7 @@ def getCols(poker):
 for row in cur:
     poker.append(row)
     gamesInChunk.add(row[0])
-    if len(gamesInChunk) % 100 == 0:
+    if len(gamesInChunk) % 10000 == 0:
         getCols(poker)
         poker = []
         gamesInChunk = set()
@@ -408,8 +408,8 @@ def getCols(tup):
 
 # populate chunk; call getCols on chunk; empty chunk; repeat
 # within each chunk: populate correct subchunk, thread subchunks
-gamesPerChunk = 800
-gamesPerSubchunk = 100
+gamesPerChunk = 8000
+gamesPerSubchunk = 1000
 subchunks = gamesPerChunk / gamesPerSubchunk
 subchunks += gamesPerChunk % gamesPerSubchunk != 0
 mp = True
