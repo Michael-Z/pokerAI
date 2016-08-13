@@ -7,8 +7,11 @@ import numpy as np
 from datetime import datetime
 from itertools import product, combinations
 import MySQLdb
+import MySQLdb.cursors
 
 ######################### PREP AND UTILITY FUNCTIONS ##########################
+testing = True
+
 # quick convert of numeric list to list of strings
 def toStrings(l):
     l = list(l)
@@ -27,9 +30,10 @@ with open('pwd.txt') as f:
     pwd = f.read().strip()
 
 # connect to DB
-db = MySQLdb.connect(host='localhost',port=3307,user='ntaylorwss',passwd=pwd)
+db = MySQLdb.connect(host='localhost',port=3307,user='ntaylorwss',passwd=pwd,
+                     cursorclass=MySQLdb.cursors.SSCursor)
 cur = db.cursor()
-cur.execute('USE poker;')
+cur.execute('USE poker{};'.format('sample' if testing else ''))
 
 # restart the table if it already exists
 allTables = ['features','quickFeatures','tableFeatures','tableFeaturesTemp',
@@ -43,11 +47,11 @@ for t in allTables:
 
 # create folders for text files
 tables = ['quick','table','column']
-if os.path.exists('features'):
-    shutil.rmtree('features')
+if os.path.exists('{}features'.format('sample' if testing else '')):
+    shutil.rmtree('{}features'.format('sample' if testing else ''))
 for fdr in ['table','column']:
-    os.makedirs('features/{}'.format(fdr))
-os.makedirs('features/new')
+    os.makedirs('{}features/{}'.format('sample' if testing else '',fdr))
+os.makedirs('{}features/new'.format('sample' if testing else ''))
 
 ########################## CREATE TABLES IN DATABASE ##########################
 datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
@@ -85,6 +89,8 @@ datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
              'NumPairsFlop': 'tinyint(2)','NumPairsRiver': 'tinyint(2)',
              'NumPairsTurn': 'tinyint(2)','NumPlayersLeft': 'tinyint(2)',
              'NumPlayersStart': 'tinyint(2)','PartInLastHand': 'tinyint(1)',
+             'Player': 'varchar(25)', 'HoleCard1': 'smallint(2)', 
+             'HoleCard2': 'smallint(2)',
              'PreflopAggFactor': 'decimal(8,4)','PreflopBetPct': 'decimal(4,3)',
              'PreflopCallPct': 'decimal(4,3)','PreflopCheckPct': 'decimal(4,3)',
              'PreflopFoldPct': 'decimal(4,3)','PreflopRaisePct': 'decimal(4,3)',
@@ -117,7 +123,7 @@ tableCols = {
     'quickFeatures': ['Action', 'Round', 'FacingBet',
           'AmountToCall_rbb', 'CurrentPot_rbb', 'NumPlayersStart',
           'NumPlayersLeft', 'BigBlind','StackToPot', 'IsSB', 'IsBB', 
-          'InvestedThisGame', 'ActionID'],
+          'InvestedThisGame', 'Player', 'HoleCard1', 'HoleCard2', 'ActionID'],
     'tableFeatures': ['NumChecksGame', 'LastToAct', 
           'LastToActStack','FinalPotLastHandTable', 'CBisCheckRaise',
           'BetsRaisesGame','BetsRaisesP', 'BetsRaisesF', 'BetsRaisesT',
@@ -185,24 +191,24 @@ print "Checkpoint, tables created:", datetime.now()-startTime
 cur.execute("""INSERT INTO quickFeatures
             (Action,Round,FacingBet,AmountToCall_rbb,CurrentPot_rbb,
              NumPlayersStart,NumPlayersLeft,BigBlind,StackToPot,
-             IsSB,IsBB,InvestedThisGame,ActionID)
+             IsSB,IsBB,InvestedThisGame,Player,HoleCard1,HoleCard2,ActionID)
             SELECT a.Action,a.Round,a.CurrentBet>a.InvestedThisRound,
                     ROUND((a.CurrentBet-a.InvestedThisRound) / g.BigBlind,2),
                     a.CurrentPot,g.NumPlayers,a.NumPlayersLeft,g.BigBlind,
                     ROUND(a.CurrentStack / a.CurrentPot,2), a.SeatRelDealer=1,
                     a.SeatRelDealer=2, a.StartStack - a.CurrentStack,
-                    a.ActionID
+                    a.Player, a.HoleCard1, a.HoleCard2, a.ActionID
             FROM actions AS a
             INNER JOIN games AS g
             ON a.GameNum=g.GameNum
             WHERE (Action!="blind") AND (Action!="deadblind");""")
 print "Checkpoint, quickFeatures populated:", datetime.now()-startTime
 ######################## POPULATE TABLE FEATURES ##############################
-os.chdir('features/table')
+os.chdir('{}features/table'.format('sample' if testing else ''))
 #### VECTORIZED FEATURES ####
 # needed columns: GameNum,Player,Action
-cols = ['GameNum','Player','Action','Round','SeatRelDealer','CurrentStack',
-        'NumPlayers']
+cols = ['GameNum','ActionID','Player','Action','Round','SeatRelDealer',
+        'CurrentStack','NumPlayers']
 cur.execute("""SELECT a.{} FROM actions AS a
             INNER JOIN games AS g
             ON a.GameNum=g.GameNum;""".format(','.join(cols)))
@@ -213,13 +219,13 @@ newCols = {}
 # write new columns to txt files
 def getCols(poker):
     # initialize
-    global newCols
-    #newCols = {}
+    global newCols, maxIndex
+    
     poker = pd.DataFrame(poker, columns=cols)
     pokerWOB = pd.DataFrame(poker.ix[~(poker.Action.isin(['deadblind','blind']))])
     
     newCols['Action'] = pokerWOB.Action
-    newCols['ActionID'] = pokerWOB.index + 1
+    newCols['ActionID'] = pokerWOB.ActionID
     
     # vectorized columns
     pokerWOB['PrevAction'] = poker.groupby(['GameNum','Player']).Action.shift(1).ix[pokerWOB.index].fillna('None')
@@ -269,12 +275,14 @@ def getCols(poker):
 for row in cur:
     poker.append(row)
     gamesInChunk.add(row[0])
-    if len(gamesInChunk) % 100000 == 0:
+    if len(gamesInChunk) % 100 == 0:
         getCols(poker)
         poker = []
         gamesInChunk = set()
 getCols(poker)
-del poker,gamesInChunk
+
+del poker,gamesInChunk,newCols
+gc.collect()
 
 print "Checkpoint, all vectorized features done:", datetime.now()-startTime
 
@@ -345,12 +353,20 @@ def getCols(tup):
         # other stacks
         stacks = [(s-currentStack)/bb for s in otherStacks]
         # writing
-        newCols['EffectiveStack'].append(min([currentStack,maxOtherStack]))
-        newCols['LastToAct'].append(min(ap))
-        newCols['MeanOtherStack_rbb_rs'].append(round(np.mean(stacks),2))
-        newCols['SDOtherStack_rbb_rs'].append(round(np.std(stacks),2))
-        newCols['MinOtherStack_rbb_rs'].append(round(np.min(stacks),2))
-        newCols['MaxOtherStack_rbb_rs'].append(round(np.max(stacks),2))
+        if len(stacks)>0:
+            newCols['EffectiveStack'].append(min([currentStack,maxOtherStack]))
+            newCols['LastToAct'].append(min(ap))
+            newCols['MeanOtherStack_rbb_rs'].append(round(np.mean(stacks),2))
+            newCols['SDOtherStack_rbb_rs'].append(round(np.std(stacks),2))
+            newCols['MinOtherStack_rbb_rs'].append(round(np.min(stacks),2))
+            newCols['MaxOtherStack_rbb_rs'].append(round(np.max(stacks),2))
+        else:
+            ['EffectiveStack','LastToAct'] + ['{}OtherStack_rbb_rs'.format(s)
+                                    for s in ['Mean','SD','Min','Max']]
+            for c in ['EffectiveStack','LastToAct'] + \
+                    ['{}OtherStack_rbb_rs'.format(s) 
+                    for s in ['Mean','SD','Min','Max']]:
+                newCols[c].append(0)
         
     # last to act stack (separate from rest due to conditions on while)
     ltasDF = zip(poker.GameNum, poker.CurrentStack, 
@@ -392,11 +408,11 @@ def getCols(tup):
 
 # populate chunk; call getCols on chunk; empty chunk; repeat
 # within each chunk: populate correct subchunk, thread subchunks
-gamesPerChunk = 24000
-gamesPerSubchunk = 3000
+gamesPerChunk = 800
+gamesPerSubchunk = 100
 subchunks = gamesPerChunk / gamesPerSubchunk
 subchunks += gamesPerChunk % gamesPerSubchunk != 0
-mp = False
+mp = True
 
 poker = [[] for i in range(subchunks)]
 gamesInChunk = set()
@@ -1242,7 +1258,7 @@ for p,v in cur:
 for p in playerVPIP:
     playerVPIP[p] = np.std(playerVPIP[p])
 ## WRITE
-cur.execute("""SELECT Player FROM actions AS a
+cur.execute("""SELECT a.Player FROM actions AS a
             INNER JOIN featuresOld AS f ON a.ActionID=f.ActionID;""")
 with open('sdVPIP.txt','ab') as outF:
     for i,p in enumerate(cur):
@@ -1308,6 +1324,18 @@ cur.execute("""INSERT INTO features
             FROM featuresOld AS o
             INNER JOIN featuresNew AS n ON o.ActionID=n.ActionID
             ;""".format(','.join(colsToGrab)))
-#cur.execute('DROP TABLE featuresOld;')
-#cur.execute('DROP TABLE featuresNew;')
-#print "END! features populated:", datetime.now()-startTime
+cur.execute('DROP TABLE featuresOld;')
+cur.execute('DROP TABLE featuresNew;')
+print "END! features populated:", datetime.now()-startTime
+################## WRITE SUBSETS TO CSV FOR FAST LOAD #########################
+os.chdir('../')
+os.mkdir('subsets')
+os.chdir('subsets')
+for rd,fb in product(['Preflop','Flop','Turn','River'], [True,False]):
+    cur.execute("""SELECT *
+                INTO OUTFILE '{0}-{1}.csv'
+                FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+                LINES TERMINATED BY '\n'
+                FROM features
+                WHERE Round={0} AND FacingBet={2};""".format(
+                rd,str(fb),int(fb)))
