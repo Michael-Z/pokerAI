@@ -13,6 +13,9 @@ import itertools
 import random
 from uuid import uuid4
 
+testing = True
+testSize = 1000
+
 locale.setlocale(locale.LC_NUMERIC, 'en_US.utf8')
 
 cardNumRangeT = [str(i) for i in range(2,10)] + ['T','J','Q','K','A']
@@ -246,7 +249,10 @@ def readABSfile(filename):
                             revFullA = fullA[::-1]
                             amt = toFloat(revFullA[:revFullA.find('$')][::-1])
                             if cb==0:
-                                a = 'bet'
+                                if roundActionNum<=2 and rd=='Preflop':
+                                    a = 'blind'
+                                else:
+                                    a = 'bet'
                                 roundInvestments[maybePlayerName] += amt
                             elif amt > cb:
                                 a = 'raise'
@@ -1520,12 +1526,13 @@ def readFile(filename):
         
 ####################### READ ALL FILES ########################################
 # restart the data folder
-if os.path.exists('data'):
-    shutil.rmtree('data')
+if os.path.exists('{}data'.format('sample' if testing else '')):
+    shutil.rmtree('{}data'.format('sample' if testing else ''))
 
 # set up directories
 for tableType in ['Small','Database']:
-    os.makedirs('data/{}CSVs'.format(tableType))
+    os.makedirs('{}data/{}CSVs'.format('sample' if testing else '',
+                                        tableType))
 
 # get all files, not including IPN because they're stupid and also dumb
 folders = ["rawdata/"+fdr for fdr in os.listdir('rawdata')]
@@ -1554,7 +1561,8 @@ def worker(tup):
     df = readFile(f)
     
     # write each DF to its own CSV
-    with open('data/SmallCSVs/poker{}.csv'.format(i),'w') as f:
+    with open('{}data/SmallCSVs/poker{}.csv'.format('sample' if testing else '',
+                                                      i),'w') as f:
         writer = csv.DictWriter(f, fieldnames=allFields)
         writer.writerows(df)
 
@@ -1578,8 +1586,6 @@ def getData(nFiles, mp=True, useExamples=False):
     print "Final runtime of getData:", datetime.datetime.now() - startTime
 
 # if testing, get example files; if not, do all files
-testing = False
-testSize = 3
 mp = True
 startTime = datetime.datetime.now()
 
@@ -1590,7 +1596,7 @@ if testing:
     for sr,st in itertools.product(srcs,stks):
         allMatches = [f for f in allFiles if f.find("/"+sr)>=0 and f.find("/"+st+"/")>=0]
         if allMatches:
-            examples.append(random.choice(allMatches))
+            examples += random.sample(allMatches, len(allMatches))
     examples = examples[:testSize]
     getData(len(examples), mp=mp, useExamples=True)
 else:
@@ -1598,7 +1604,7 @@ else:
 
 ####################### DATA FORMATTING 2: THE SQL ############################
 # work in data folder from now on
-os.chdir('data')
+os.chdir('{}data'.format('sample' if testing else ''))
 
 # concatenate all CSVs to one big CSV
 os.system('cat SmallCSVs/*.csv > fullPoker.csv')
@@ -1647,11 +1653,11 @@ cursor = db.cursor()
 
 # if it exists, blow it up and go from the beginning
 try:
-    cursor.execute('DROP DATABASE poker;')
+    cursor.execute('DROP DATABASE poker{};'.format('sample' if testing else ''))
 except MySQLdb.OperationalError:
     pass
-cursor.execute('CREATE DATABASE poker;')
-cursor.execute('USE poker;')
+cursor.execute('CREATE DATABASE poker{};'.format('sample' if testing else ''))
+cursor.execute('USE poker{};'.format('sample' if testing else ''))
 
 # queries to create tables
 createBoardsTempQuery = """create table boardsTemp

@@ -1333,9 +1333,10 @@ os.mkdir('subsets')
 os.chdir('subsets')
 for rd,fb in product(['Preflop','Flop','Turn','River'], [True,False]):
     cur.execute("""SELECT *
-                INTO OUTFILE '{0}-{1}.csv'
+                INTO OUTFILE '{0}/{1}-{2}.csv'
                 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
                 LINES TERMINATED BY '\n'
                 FROM features
-                WHERE Round={0} AND FacingBet={2};""".format(
-                rd,str(fb),int(fb)))
+                WHERE Round={1} AND FacingBet={3};""".format(
+                os.getcwd(), rd, str(fb), int(fb)
+    ))
