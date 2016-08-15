@@ -206,7 +206,7 @@ print "Checkpoint, quickFeatures populated:", datetime.now()-startTime
 ######################## POPULATE TABLE FEATURES ##############################
 os.chdir('{}features/table'.format('sample' if testing else ''))
 #### VECTORIZED FEATURES ####
- needed columns: GameNum,Player,Action
+# needed columns: GameNum,Player,Action
 cols = ['GameNum','ActionID','Player','Action','Round','SeatRelDealer',
         'CurrentStack','NumPlayers']
 cur.execute("""SELECT a.{} FROM actions AS a
