@@ -188,284 +188,284 @@ for t in tableCols:
 print "Checkpoint, tables created:", datetime.now()-startTime
 
 ######################## POPULATE QUICK FEATURES ##############################
-#cur.execute("""INSERT INTO quickFeatures
-#            (Action,Round,FacingBet,AmountToCall_rbb,CurrentPot_rbb,
-#             NumPlayersStart,NumPlayersLeft,BigBlind,StackToPot,
-#             IsSB,IsBB,InvestedThisGame,Player,HoleCard1,HoleCard2,ActionID)
-#            SELECT a.Action,a.Round,a.CurrentBet>a.InvestedThisRound,
-#                    ROUND((a.CurrentBet-a.InvestedThisRound) / g.BigBlind,2),
-#                    a.CurrentPot,g.NumPlayers,a.NumPlayersLeft,g.BigBlind,
-#                    ROUND(a.CurrentStack / a.CurrentPot,2), a.SeatRelDealer=1,
-#                    a.SeatRelDealer=2, a.StartStack - a.CurrentStack,
-#                    a.Player, a.HoleCard1, a.HoleCard2, a.ActionID
-#            FROM actions AS a
-#            INNER JOIN games AS g
-#            ON a.GameNum=g.GameNum
-#            WHERE (Action!="blind") AND (Action!="deadblind");""")
-#print "Checkpoint, quickFeatures populated:", datetime.now()-startTime
+cur.execute("""INSERT INTO quickFeatures
+            (Action,Round,FacingBet,AmountToCall_rbb,CurrentPot_rbb,
+             NumPlayersStart,NumPlayersLeft,BigBlind,StackToPot,
+             IsSB,IsBB,InvestedThisGame,Player,HoleCard1,HoleCard2,ActionID)
+            SELECT a.Action,a.Round,a.CurrentBet>a.InvestedThisRound,
+                    ROUND((a.CurrentBet-a.InvestedThisRound) / g.BigBlind,2),
+                    a.CurrentPot,g.NumPlayers,a.NumPlayersLeft,g.BigBlind,
+                    ROUND(a.CurrentStack / a.CurrentPot,2), a.SeatRelDealer=1,
+                    a.SeatRelDealer=2, a.StartStack - a.CurrentStack,
+                    a.Player, a.HoleCard1, a.HoleCard2, a.ActionID
+            FROM actions AS a
+            INNER JOIN games AS g
+            ON a.GameNum=g.GameNum
+            WHERE (Action!="blind") AND (Action!="deadblind");""")
+print "Checkpoint, quickFeatures populated:", datetime.now()-startTime
 ######################## POPULATE TABLE FEATURES ##############################
 os.chdir('{}features/table'.format('sample' if testing else ''))
 #### VECTORIZED FEATURES ####
-# needed columns: GameNum,Player,Action
-#cols = ['GameNum','ActionID','Player','Action','Round','SeatRelDealer',
-#        'CurrentStack','NumPlayers']
-#cur.execute("""SELECT a.{} FROM actions AS a
-#            INNER JOIN games AS g
-#            ON a.GameNum=g.GameNum;""".format(','.join(cols)))
-#poker = []
-#gamesInChunk = set()
-#
-#newCols = {}
-## write new columns to txt files
-#def getCols(poker):
-#    # initialize
-#    global newCols, maxIndex
-#    
-#    poker = pd.DataFrame(poker, columns=cols)
-#    pokerWOB = pd.DataFrame(poker.ix[~(poker.Action.isin(['deadblind','blind']))])
-#    
-#    newCols['Action'] = pokerWOB.Action
-#    newCols['ActionID'] = pokerWOB.ActionID
-#    
-#    # vectorized columns
-#    pokerWOB['PrevAction'] = poker.groupby(['GameNum','Player']).Action.shift(1).ix[pokerWOB.index].fillna('None')
-#    newCols['CBisCheckRaise'] = ((pokerWOB.PrevAction=='check') & (pokerWOB.Action=='raise')).astype(int)
-#    
-#    pokerWOB['BetOrRaise'] = pokerWOB.Action.isin(['bet','raise'])
-#    pokerWOB['check'] = pokerWOB.Action=='check'
-#    newCols['BetsRaisesGame'] = pokerWOB.groupby('GameNum').BetOrRaise.cumsum()
-#    newCols['NumChecksGame'] = pokerWOB.groupby('GameNum').check.cumsum()
-#    
-#    newCols['SeatRelDealer_rnp'] = pokerWOB.SeatRelDealer / pokerWOB.NumPlayers
-#    
-#    agg = poker.Action.isin(['deadblind','blind','bet','raise']).astype(bool)
-#    pokerWOB['AggressorPos'] = (poker.SeatRelDealer*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
-#    newCols['IsAgg'] = agg.ix[pokerWOB.index].astype(int)
-#    newCols['AggressorPos'] = pokerWOB.AggressorPos
-#    newCols['AggInPosVsMe'] = (pokerWOB.AggressorPos < pokerWOB.SeatRelDealer).astype(int)
-#    newCols['AggStack'] = (poker.CurrentStack*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
-#    newCols['ESvsAgg'] = (pd.Series(newCols['AggStack'])>=pokerWOB.CurrentStack) \
-#            *pd.Series(newCols['AggStack']) + \
-#            (pokerWOB.CurrentStack>=newCols['AggStack'])*pokerWOB.CurrentStack
-#    
-#    # total bets and raises for each round
-#    # (not vectorized, but convenient to calculate here)
-#    for r in ['P','F','R','T']:
-#        newCols['BetsRaises{}'.format(r)] = []
-#    relevantCols = ['GameNum','Round','BetOrRaise']
-#    brDF = zip(*[pokerWOB[c] for c in relevantCols])
-#    rounds = ['Preflop','Flop','Turn','River']
-#    newBRCols = {r:[] for r in rounds}
-#    counts = {r:0 for r in rounds}
-#    for i,(g,r,bor) in enumerate(brDF):
-#        if g!=brDF[i-1][0]:
-#            counts = {r:0 for r in rounds}
-#        for rd in rounds:
-#            newBRCols[rd].append(counts[rd])
-#            if r==rd: counts[r] += bor
-#    for rd in rounds:
-#        newCols['BetsRaises{}'.format(rd[0])] = newBRCols[rd]
-#    
-#    # write columns to text
-#    for c,v in newCols.iteritems():
-#        with open('{}.txt'.format(c),'ab') as f:
-#            f.write('\n'.join(toStrings(v)) + '\n')
-#
-## populate chunk; call getCols on chunk; empty chunk; repeat
-#for row in cur:
-#    poker.append(row)
-#    gamesInChunk.add(row[0])
-#    if len(gamesInChunk) % 10000 == 0:
-#        getCols(poker)
-#        poker = []
-#        gamesInChunk = set()
-#getCols(poker)
-#
-#del poker,gamesInChunk,newCols
-#gc.collect()
-#
-#print "Checkpoint, all vectorized features done:", datetime.now()-startTime
+ needed columns: GameNum,Player,Action
+cols = ['GameNum','ActionID','Player','Action','Round','SeatRelDealer',
+        'CurrentStack','NumPlayers']
+cur.execute("""SELECT a.{} FROM actions AS a
+            INNER JOIN games AS g
+            ON a.GameNum=g.GameNum;""".format(','.join(cols)))
+poker = []
+gamesInChunk = set()
 
-#### LOOPING FEATURES ####
-#cols =  ['GameNum','Round','Player','SeatRelDealer','Action','CurrentStack',
-#         'TableName','CurrentPot','BigBlind']
-#cur.execute("""SELECT {}
-#            FROM actions AS a
-#            INNER JOIN games AS g
-#            ON a.GameNum=g.GameNum;""".format('a.'+','.join(cols)))
-#            
-#def getCols(tup):
-#    ii,poker = tup
-#    
-#    # initialize
-#    poker = pd.DataFrame(poker, columns=cols)
-#    pokerWOB = poker.ix[~(poker.Action.isin(['blind','deadblind']))]
-#    newColNames = ['EffectiveStack','LastToAct','LastToActStack',
-#                   'FinalPotLastHandTable','MeanOtherStack_rbb_rs',
-#                   'SDOtherStack_rbb_rs','MinOtherStack_rbb_rs',
-#                   'MaxOtherStack_rbb_rs']
-#    newCols = {c:[] for c in newColNames}
-#    
-#    # all of them at once
-#    allDF = zip(*[poker[c] for c in poker.columns])
-#    tableLastHandPot = {} # final pot
-#    for i,(gameNum,rd,player,seat,action,
-#           currentStack,table,currentPot,bb) in enumerate(allDF):
-#        # prep
-#        windowStart = i
-#        windowEnd = i
-#        maxOtherStack = 0 # effective stack
-#        ap = [] # last to act
-#        otherStacks = [] # relbb
-#        m = len(allDF) # all
-#        
-#        # final pot of last hand at table
-#        if not table in tableLastHandPot:
-#            tableLastHandPot[table] = -1
-#        newCols['FinalPotLastHandTable'].append(tableLastHandPot[table])
-#        if (i+1)<len(allDF) and gameNum!=allDF[i+1][0]:
-#            tableLastHandPot[table] = currentPot
-#        
-#        # all others
-#        while windowStart>=0 and allDF[windowStart][:2]==(gameNum,rd):
-#            r = allDF[windowStart]
-#            # effective stack
-#            if r[2]!=player and r[4]!='fold':
-#                if r[5]>maxOtherStack:
-#                    maxOtherStack = r[5]
-#                # other stacks
-#                otherStacks.append(r[5])
-#            # last to act
-#            if allDF[windowStart][4]!='fold':
-#                ap.append(allDF[windowStart][3])
-#            windowStart -= 1
-#        while windowEnd<m and allDF[windowEnd][:2]==(gameNum,rd):
-#            row = allDF[windowEnd]
-#            # effective stack
-#            if row[2]!=player:
-#                if r[5]>maxOtherStack:
-#                    maxOtherStack = r[5]
-#                # other stacks
-#                otherStacks.append(r[5])
-#            # last to act
-#            ap.append(allDF[windowEnd][3])
-#            windowEnd += 1
-#        # other stacks
-#        stacks = [(s-currentStack)/bb for s in otherStacks]
-#        # writing
-#        if len(stacks)>0:
-#            newCols['EffectiveStack'].append(min([currentStack,maxOtherStack]))
-#            newCols['LastToAct'].append(min(ap))
-#            newCols['MeanOtherStack_rbb_rs'].append(round(np.mean(stacks),2))
-#            newCols['SDOtherStack_rbb_rs'].append(round(np.std(stacks),2))
-#            newCols['MinOtherStack_rbb_rs'].append(round(np.min(stacks),2))
-#            newCols['MaxOtherStack_rbb_rs'].append(round(np.max(stacks),2))
-#        else:
-#            ['EffectiveStack','LastToAct'] + ['{}OtherStack_rbb_rs'.format(s)
-#                                    for s in ['Mean','SD','Min','Max']]
-#            for c in ['EffectiveStack','LastToAct'] + \
-#                    ['{}OtherStack_rbb_rs'.format(s) 
-#                    for s in ['Mean','SD','Min','Max']]:
-#                newCols[c].append(0)
-#        
-#    # last to act stack (separate from rest due to conditions on while)
-#    ltasDF = zip(poker.GameNum, poker.CurrentStack, 
-#                 poker.SeatRelDealer, newCols['LastToAct'])
-#    LTASbyRow = []
-#    m = len(ltasDF)
-#    for i,(gameNum,stack,seat,lta) in enumerate(ltasDF):
-#        s = 0
-#        windowStart = i
-#        windowEnd = i
-#        while windowStart>=0 and ltasDF[windowStart][0]==gameNum:
-#            r = ltasDF[windowStart]
-#            if r[3]==r[2]:
-#                s = r[1]
-#                break
-#            windowStart -= 1
-#        if s==0:
-#            while windowEnd<m and ltasDF[windowEnd][0]==gameNum:
-#                r = ltasDF[windowEnd]
-#                if r[3]==r[2]:
-#                    s = r[1]
-#                    break
-#                windowEnd += 1
-#        LTASbyRow.append(s)
-#    newCols['LastToActStack'] = LTASbyRow
-#    del LTASbyRow
-#    gc.collect()
-#    
-#    # filter all columns to wob
-#    for c in newCols:
-#        newCols[c] = [newCols[c][i] for i in pokerWOB.index]
-#
-#    # write columns to text
-#    for c,v in newCols.iteritems():
-#        with open('{}--{}.txt'.format(c,ii),'w') as f:
-#            f.write('\n'.join(toStrings(v)) + '\n')
-#    
-#    return len(newCols[newCols.keys()[0]])
-#
-## populate chunk; call getCols on chunk; empty chunk; repeat
-## within each chunk: populate correct subchunk, thread subchunks
-#gamesPerChunk = 8000
-#gamesPerSubchunk = 1000
-#subchunks = gamesPerChunk / gamesPerSubchunk
-#subchunks += gamesPerChunk % gamesPerSubchunk != 0
-#mp = True
-#
-#poker = [[] for i in range(subchunks)]
-#gamesInChunk = set()
-#subChunkInd = 0
-#lastGame = ''
-#finalGame = ''
-#finalGameFlag = False
-#chunksDone = 0
-#for row in cur:
-#    if len(gamesInChunk) % gamesPerChunk == 0 and len(gamesInChunk) > 0:
-#        if row[0]!=finalGame and not finalGameFlag:
-#            finalGame = row[0]
-#            finalGameFlag = True
-#        elif finalGameFlag:
-#            if row[0]!=finalGame:
-#                # thread subchunks
-#                if mp:
-#                    p = multiprocessing.Pool(min([8, subchunks]))
-#                    p.map_async(getCols, enumerate(poker, chunksDone*(subchunks+2)))
-#                    p.close()
-#                    p.join()
-#                else:
-#                    map(getCols, enumerate(poker, chunksDone*(subchunks+2)))
-#                # reset everything
-#                poker = [[] for i in range(subchunks)]
-#                subChunkInd = 0
-#                gamesInChunk = set()
-#                lastGame = ''
-#                finalGame = ''
-#                finalGameFlag = False
-#                chunksDone += 1
-#    if len(gamesInChunk) % gamesPerSubchunk == 0 and len(gamesInChunk) > 0  and \
-#            row[0]!=lastGame:
-#        subChunkInd += 1
-#    gamesInChunk.add(row[0])
-#    poker[subChunkInd].append(row)
-#    lastGame = row[0]
-#
-#pokerFilled = 0
-#while pokerFilled<len(poker) and len(poker[pokerFilled])>0:
-#    pokerFilled += 1
-#    
-#if mp:
-#    p = multiprocessing.Pool(min([8, subchunks]))
-#    p.map_async(getCols, enumerate(poker[:pokerFilled], chunksDone*(subchunks+2)))
-#    p.close()
-#    p.join()
-#else:
-#    map(getCols, enumerate(poker[:pokerFilled], chunksDone*(subchunks+2)))
-#
-#del poker,gamesInChunk
-#
-#print "Checkpoint, all looping features done:", datetime.now()-startTime
+newCols = {}
+# write new columns to txt files
+def getCols(poker):
+    # initialize
+    global newCols, maxIndex
+    
+    poker = pd.DataFrame(poker, columns=cols)
+    pokerWOB = pd.DataFrame(poker.ix[~(poker.Action.isin(['deadblind','blind']))])
+    
+    newCols['Action'] = pokerWOB.Action
+    newCols['ActionID'] = pokerWOB.ActionID
+    
+    # vectorized columns
+    pokerWOB['PrevAction'] = poker.groupby(['GameNum','Player']).Action.shift(1).ix[pokerWOB.index].fillna('None')
+    newCols['CBisCheckRaise'] = ((pokerWOB.PrevAction=='check') & (pokerWOB.Action=='raise')).astype(int)
+    
+    pokerWOB['BetOrRaise'] = pokerWOB.Action.isin(['bet','raise'])
+    pokerWOB['check'] = pokerWOB.Action=='check'
+    newCols['BetsRaisesGame'] = pokerWOB.groupby('GameNum').BetOrRaise.cumsum()
+    newCols['NumChecksGame'] = pokerWOB.groupby('GameNum').check.cumsum()
+    
+    newCols['SeatRelDealer_rnp'] = pokerWOB.SeatRelDealer / pokerWOB.NumPlayers
+    
+    agg = poker.Action.isin(['deadblind','blind','bet','raise']).astype(bool)
+    pokerWOB['AggressorPos'] = (poker.SeatRelDealer*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
+    newCols['IsAgg'] = agg.ix[pokerWOB.index].astype(int)
+    newCols['AggressorPos'] = pokerWOB.AggressorPos
+    newCols['AggInPosVsMe'] = (pokerWOB.AggressorPos < pokerWOB.SeatRelDealer).astype(int)
+    newCols['AggStack'] = (poker.CurrentStack*agg).replace(to_replace=0,method='ffill').ix[pokerWOB.index]
+    newCols['ESvsAgg'] = (pd.Series(newCols['AggStack'])>=pokerWOB.CurrentStack) \
+            *pd.Series(newCols['AggStack']) + \
+            (pokerWOB.CurrentStack>=newCols['AggStack'])*pokerWOB.CurrentStack
+    
+    # total bets and raises for each round
+    # (not vectorized, but convenient to calculate here)
+    for r in ['P','F','R','T']:
+        newCols['BetsRaises{}'.format(r)] = []
+    relevantCols = ['GameNum','Round','BetOrRaise']
+    brDF = zip(*[pokerWOB[c] for c in relevantCols])
+    rounds = ['Preflop','Flop','Turn','River']
+    newBRCols = {r:[] for r in rounds}
+    counts = {r:0 for r in rounds}
+    for i,(g,r,bor) in enumerate(brDF):
+        if g!=brDF[i-1][0]:
+            counts = {r:0 for r in rounds}
+        for rd in rounds:
+            newBRCols[rd].append(counts[rd])
+            if r==rd: counts[r] += bor
+    for rd in rounds:
+        newCols['BetsRaises{}'.format(rd[0])] = newBRCols[rd]
+    
+    # write columns to text
+    for c,v in newCols.iteritems():
+        with open('{}.txt'.format(c),'ab') as f:
+            f.write('\n'.join(toStrings(v)) + '\n')
+
+# populate chunk; call getCols on chunk; empty chunk; repeat
+for row in cur:
+    poker.append(row)
+    gamesInChunk.add(row[0])
+    if len(gamesInChunk) % 10000 == 0:
+        getCols(poker)
+        poker = []
+        gamesInChunk = set()
+getCols(poker)
+
+del poker,gamesInChunk,newCols
+gc.collect()
+
+print "Checkpoint, all vectorized features done:", datetime.now()-startTime
+
+### LOOPING FEATURES ####
+cols =  ['GameNum','Round','Player','SeatRelDealer','Action','CurrentStack',
+         'TableName','CurrentPot','BigBlind']
+cur.execute("""SELECT {}
+            FROM actions AS a
+            INNER JOIN games AS g
+            ON a.GameNum=g.GameNum;""".format('a.'+','.join(cols)))
+            
+def getCols(tup):
+    ii,poker = tup
+    
+    # initialize
+    poker = pd.DataFrame(poker, columns=cols)
+    pokerWOB = poker.ix[~(poker.Action.isin(['blind','deadblind']))]
+    newColNames = ['EffectiveStack','LastToAct','LastToActStack',
+                   'FinalPotLastHandTable','MeanOtherStack_rbb_rs',
+                   'SDOtherStack_rbb_rs','MinOtherStack_rbb_rs',
+                   'MaxOtherStack_rbb_rs']
+    newCols = {c:[] for c in newColNames}
+    
+    # all of them at once
+    allDF = zip(*[poker[c] for c in poker.columns])
+    tableLastHandPot = {} # final pot
+    for i,(gameNum,rd,player,seat,action,
+           currentStack,table,currentPot,bb) in enumerate(allDF):
+        # prep
+        windowStart = i
+        windowEnd = i
+        maxOtherStack = 0 # effective stack
+        ap = [] # last to act
+        otherStacks = [] # relbb
+        m = len(allDF) # all
+        
+        # final pot of last hand at table
+        if not table in tableLastHandPot:
+            tableLastHandPot[table] = -1
+        newCols['FinalPotLastHandTable'].append(tableLastHandPot[table])
+        if (i+1)<len(allDF) and gameNum!=allDF[i+1][0]:
+            tableLastHandPot[table] = currentPot
+        
+        # all others
+        while windowStart>=0 and allDF[windowStart][:2]==(gameNum,rd):
+            r = allDF[windowStart]
+            # effective stack
+            if r[2]!=player and r[4]!='fold':
+                if r[5]>maxOtherStack:
+                    maxOtherStack = r[5]
+                # other stacks
+                otherStacks.append(r[5])
+            # last to act
+            if allDF[windowStart][4]!='fold':
+                ap.append(allDF[windowStart][3])
+            windowStart -= 1
+        while windowEnd<m and allDF[windowEnd][:2]==(gameNum,rd):
+            row = allDF[windowEnd]
+            # effective stack
+            if row[2]!=player:
+                if r[5]>maxOtherStack:
+                    maxOtherStack = r[5]
+                # other stacks
+                otherStacks.append(r[5])
+            # last to act
+            ap.append(allDF[windowEnd][3])
+            windowEnd += 1
+        # other stacks
+        stacks = [(s-currentStack)/bb for s in otherStacks]
+        # writing
+        if len(stacks)>0:
+            newCols['EffectiveStack'].append(min([currentStack,maxOtherStack]))
+            newCols['LastToAct'].append(min(ap))
+            newCols['MeanOtherStack_rbb_rs'].append(round(np.mean(stacks),2))
+            newCols['SDOtherStack_rbb_rs'].append(round(np.std(stacks),2))
+            newCols['MinOtherStack_rbb_rs'].append(round(np.min(stacks),2))
+            newCols['MaxOtherStack_rbb_rs'].append(round(np.max(stacks),2))
+        else:
+            ['EffectiveStack','LastToAct'] + ['{}OtherStack_rbb_rs'.format(s)
+                                    for s in ['Mean','SD','Min','Max']]
+            for c in ['EffectiveStack','LastToAct'] + \
+                    ['{}OtherStack_rbb_rs'.format(s) 
+                    for s in ['Mean','SD','Min','Max']]:
+                newCols[c].append(0)
+        
+    # last to act stack (separate from rest due to conditions on while)
+    ltasDF = zip(poker.GameNum, poker.CurrentStack, 
+                 poker.SeatRelDealer, newCols['LastToAct'])
+    LTASbyRow = []
+    m = len(ltasDF)
+    for i,(gameNum,stack,seat,lta) in enumerate(ltasDF):
+        s = 0
+        windowStart = i
+        windowEnd = i
+        while windowStart>=0 and ltasDF[windowStart][0]==gameNum:
+            r = ltasDF[windowStart]
+            if r[3]==r[2]:
+                s = r[1]
+                break
+            windowStart -= 1
+        if s==0:
+            while windowEnd<m and ltasDF[windowEnd][0]==gameNum:
+                r = ltasDF[windowEnd]
+                if r[3]==r[2]:
+                    s = r[1]
+                    break
+                windowEnd += 1
+        LTASbyRow.append(s)
+    newCols['LastToActStack'] = LTASbyRow
+    del LTASbyRow
+    gc.collect()
+    
+    # filter all columns to wob
+    for c in newCols:
+        newCols[c] = [newCols[c][i] for i in pokerWOB.index]
+
+    # write columns to text
+    for c,v in newCols.iteritems():
+        with open('{}--{}.txt'.format(c,ii),'w') as f:
+            f.write('\n'.join(toStrings(v)) + '\n')
+    
+    return len(newCols[newCols.keys()[0]])
+
+# populate chunk; call getCols on chunk; empty chunk; repeat
+# within each chunk: populate correct subchunk, thread subchunks
+gamesPerChunk = 8000
+gamesPerSubchunk = 1000
+subchunks = gamesPerChunk / gamesPerSubchunk
+subchunks += gamesPerChunk % gamesPerSubchunk != 0
+mp = True
+
+poker = [[] for i in range(subchunks)]
+gamesInChunk = set()
+subChunkInd = 0
+lastGame = ''
+finalGame = ''
+finalGameFlag = False
+chunksDone = 0
+for row in cur:
+    if len(gamesInChunk) % gamesPerChunk == 0 and len(gamesInChunk) > 0:
+        if row[0]!=finalGame and not finalGameFlag:
+            finalGame = row[0]
+            finalGameFlag = True
+        elif finalGameFlag:
+            if row[0]!=finalGame:
+                # thread subchunks
+                if mp:
+                    p = multiprocessing.Pool(min([8, subchunks]))
+                    p.map_async(getCols, enumerate(poker, chunksDone*(subchunks+2)))
+                    p.close()
+                    p.join()
+                else:
+                    map(getCols, enumerate(poker, chunksDone*(subchunks+2)))
+                # reset everything
+                poker = [[] for i in range(subchunks)]
+                subChunkInd = 0
+                gamesInChunk = set()
+                lastGame = ''
+                finalGame = ''
+                finalGameFlag = False
+                chunksDone += 1
+    if len(gamesInChunk) % gamesPerSubchunk == 0 and len(gamesInChunk) > 0  and \
+            row[0]!=lastGame:
+        subChunkInd += 1
+    gamesInChunk.add(row[0])
+    poker[subChunkInd].append(row)
+    lastGame = row[0]
+
+pokerFilled = 0
+while pokerFilled<len(poker) and len(poker[pokerFilled])>0:
+    pokerFilled += 1
+    
+if mp:
+    p = multiprocessing.Pool(min([8, subchunks]))
+    p.map_async(getCols, enumerate(poker[:pokerFilled], chunksDone*(subchunks+2)))
+    p.close()
+    p.join()
+else:
+    map(getCols, enumerate(poker[:pokerFilled], chunksDone*(subchunks+2)))
+
+del poker,gamesInChunk
+
+print "Checkpoint, all looping features done:", datetime.now()-startTime
 
 #### BOARD FEATURES ####
 cols = ['GameNum'] + ['Board{}'.format(i) for i in range(1,6)] + ['Action']
