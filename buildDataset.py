@@ -8,6 +8,7 @@ from datetime import datetime
 from itertools import product, combinations
 import MySQLdb
 import MySQLdb.cursors
+import json
 
 ######################### PREP AND UTILITY FUNCTIONS ##########################
 testing = True
@@ -34,6 +35,7 @@ db = MySQLdb.connect(host='localhost',port=3307,user='ntaylorwss',passwd=pwd,
                      cursorclass=MySQLdb.cursors.SSCursor)
 cur = db.cursor()
 cur.execute('USE poker{};'.format('sample' if testing else ''))
+cur.execute('SET GLOBAL max_allowed_packet=67108864')
 
 # restart the table if it already exists
 allTables = ['features','quickFeatures','tableFeatures','tableFeaturesTemp',
@@ -629,7 +631,7 @@ with open('Action.txt','ab') as outF:
     for i,a in enumerate(cur):
         a = a[0]
         A.append(a)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(A) + '\n')
             A = []
     outF.write('\n'.join(A))
@@ -649,7 +651,7 @@ with open('LastAction.txt','ab') as outF:
             pla.append('None')
             appends += 1
         lastActions[p] = a
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(pla) + '\n')
             pla = []
     outF.write('\n'.join(pla))
@@ -698,7 +700,7 @@ for i,(p,a) in enumerate(cur):
                 rAsPct = 0.
             colsToBeWritten[a][r].append(rAsPct)
         colsToBeWritten[a]['All'].append(int(byRound['All']))
-    if i % 10000000 == 0:
+    if i % 1000000 == 0:
         for a in actions:
             for r in rounds:
                 f = open('{}{}{}.txt'.format(
@@ -739,7 +741,7 @@ with open('VPIP.txt','ab') as vpipF:
     for i,p in enumerate(cur):
         p = p[0]
         vpip.append((playersCalls[p]+playersRaises[p]) / playersPreflopOps[p])
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             vpipF.write('\n'.join(toStrings(vpip)) + '\n')
             vpip = []
     vpipF.write('\n'.join(toStrings(vpip)))
@@ -765,7 +767,7 @@ with open('NetAtTable.txt','ab') as outF:
             # player not seen before, record first table start stack, take 0
             playerTableStartStacks[p] = {t: s}
             nat.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(nat)) + '\n')
             nat = []
     outF.write('\n'.join(toStrings(nat)))
@@ -802,7 +804,7 @@ with open('ThreeBetPct.txt','ab') as outF:
             threeBets.append(player3Bets[p] / player3BetOpps[p])
         else:
             threeBets.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(threeBets)) + '\n')
             threeBets = []
     outF.write('\n'.join(toStrings(threeBets)))
@@ -826,7 +828,7 @@ with open('SeeSDPct.txt','ab') as outF:
         p = p[0]
         allG = playerGameSeesSD[p].values()
         ssPct.append(round(np.mean(allG),3))
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(ssPct)) + '\n')
             ssPct = []
     outF.write('\n'.join(toStrings(ssPct)))
@@ -856,7 +858,7 @@ with open('WinWhenSeeFlopPct.txt','ab') as outF:
             wf.append(float(playerFlopWins[p]) / len(playerFlopOpps[p]))
         else:
             wf.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(wf)) + '\n')
             wf = []
     outF.write('\n'.join(toStrings(wf)))
@@ -889,7 +891,7 @@ with open('WinWithoutSDPct.txt','ab') as outF:
             wws.append(float(len(playerWinsWSD[p])) / len(playerWins[p]))
         else:
             wws.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(wws)) + '\n')
             wws = []
     outF.write('\n'.join(toStrings(wws)))
@@ -922,7 +924,7 @@ with open('WinAtSDPct.txt','ab') as outF:
             ws.append(float(len(playerWinsAtSD[p])) / len(playerShowdowns[p]))
         else:
             ws.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(ws)) + '\n')
             ws = []
     outF.write('\n'.join(toStrings(ws)))
@@ -961,7 +963,7 @@ with open('ContBetPct.txt','ab') as outF:
             cb.append(playerContBets[p] / playerContBetOpps[p])
         else:
             cb.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(cb)) + '\n')
             cb = []
     outF.write('\n'.join(toStrings(cb)))
@@ -990,7 +992,7 @@ with open('BetRiverPct.txt','ab') as outF:
             br.append(float(playerRiverBets[p]) / playerRiverOpps[p])
         else:
             br.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(br)) + '\n')
             br = []
     outF.write('\n'.join(toStrings(br)))
@@ -1025,7 +1027,7 @@ with open('CallOrRaisePFRPct.txt','ab') as outF:
             cpfr.append(playerPFRCalls[p] / playerPFROpps[p])
         else:
             cpfr.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(cpfr)) + '\n')
             cpfr = []
     outF.write('\n'.join(toStrings(cpfr)))
@@ -1079,7 +1081,7 @@ with open('FoldToCBetPct.txt','ab') as outFoldF, \
         else:
             for a in ['fold','call','raise']:
                 cBetReacts[a].append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outFoldF.write('\n'.join(toStrings(cBetReacts['fold'])) + '\n')
             outCallF.write('\n'.join(toStrings(cBetReacts['call'])) + '\n')
             outRaiseF.write('\n'.join(toStrings(cBetReacts['raise'])) + '\n')
@@ -1130,7 +1132,7 @@ with open('FoldToFlopBetPct.txt','ab') as outFoldF, \
         else:
             for a in ['fold','call','raise']:
                 flopBetReacts[a].append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outFoldF.write('\n'.join(toStrings(flopBetReacts['fold'])) + '\n')
             outCallF.write('\n'.join(toStrings(flopBetReacts['call'])) + '\n')
             outRaiseF.write('\n'.join(toStrings(flopBetReacts['raise'])) + '\n')
@@ -1153,7 +1155,7 @@ with open('NetLastHand_rss.txt','ab') as outF:
         else:
             playerLastStacks[p] = {'GameNum':g, 'Stack':s}
             nets.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(nets)) + '\n')
             nets = []
     outF.write('\n'.join(toStrings(nets)))
@@ -1181,7 +1183,7 @@ with open('PartInLastHand.txt','ab') as outF:
             playerPInLastHand[p] = 0
             playerPInCurrentHand[p] = a!='fold'
             plh.append(0.)
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(plh)) + '\n')
             plh = []
         lastG = g
@@ -1265,7 +1267,7 @@ with open('sdVPIP.txt','ab') as outF:
     for i,p in enumerate(cur):
         p = p[0]
         sdv.append(playerVPIP[p])
-        if i % 10000000 == 0:
+        if i % 1000000 == 0:
             outF.write('\n'.join(toStrings(sdv)) + '\n')
             sdv = []
     outF.write('\n'.join(toStrings(sdv)))
@@ -1282,7 +1284,7 @@ def getAF(rd):
                 af.append(0.)
             else:
                 af.append(float((b+r)/c))
-            if i % 10000000 == 0:
+            if i % 1000000 == 0:
                 outF.write('\n'.join(toStrings(af)) + '\n')
                 af = []
         outF.write('\n'.join(toStrings(af)))
@@ -1332,12 +1334,71 @@ print "END! features populated:", datetime.now()-startTime
 os.chdir('../')
 os.mkdir('subsets')
 os.chdir('subsets')
+
+allCols = ['NumPairsRiver', 'HighCardTurn', 'TurnRaisePct', 'BigBlind',
+           'RiverBetPct', 'FinalPotLastHandTable', 'NumPlayersStart', 'IsBB',
+           'RiverCheckPct', 'NumFaceCardsFlop', 'RiverRaisePct', 
+           'TwoToFlushDrawFlop', 'ThreeOrMoreToStraightRiver', 'BetsRaisesF',
+           'MeanOtherStack_rbb_rs', 'RiverFoldPct', 'TurnBrick', 'BetsRaisesT',
+           'RiverCallPct', 'BetsRaisesR', 'BetsRaisesP', 'FlushTurned',
+           'SeeSDPct', 'TurnFoldPct', 'LastToActStack', 'TurnCheckPct',
+           'PreflopAggFactor', 'PreflopCheckPct', 'TwoToStraightDrawFlop',
+           'CallFlopBetPct', 'FlopBetPct', 'ThreeBetPct', 'MaxOtherStack_rbb_rs',
+           'HoleCard1', 'RaiseCBetPct', 'HoleCard2', 'LastToAct', 'TurnBetPct',
+           'AllCheck', 'ThreeOrMoreToStraightTurn', 'AllCall', 'VPIP',
+           'NumChecksGame', 'PreflopFoldPct', 'RiverAggFactor', 'PreflopCallPct',
+           'AggStack', 'RaiseFlopBetPct', 'IsSB', 'RiverOverCard', 'NumPairsFlop',
+           'FlopRaisePct', 'FlopAggFactor', 'FoldToFlopBetPct', 'AggressorPos',
+           'AggInPosVsMe', 'HighCardFlop', 'ThreeToFlushDrawFlop', 'WinAtSDPct',
+           'BetRiverPct', 'InvestedThisGame', 'AllRaise', 'NumPlayersLeft',
+           'TurnAggFactor', 'LastAction', 'CallCBetPct', 'SDOtherStack_rbb_rs',
+           'AllBet', 'ThreeToStraightFlop', 'StackToPot', 'ContBetPct',
+           'PreflopRaisePct', 'NumFaceCardsRiver', 'TurnOverCard',
+           'FoldToCBetPct', 'FlushRivered', 'NumFaceCardsTurn',
+           'BetsRaisesGame', 'NetAtTable', 'AvgCardRankRiver',
+           'RangeRiver', 'sdVPIP', 'AllFold', 'TwoToFlushDrawTurn',
+           'ESvsAgg', 'SeatRelDealer_rnp', 'PreflopBetPct', 'CBisCheckRaise',
+           'IsAgg', 'WinWithoutSDPct', 'WinWhenSeeFlopPct', 'CallOrRaisePFRPct',
+           'EffectiveStack', 'AllAggFactor', 'TwoToStraightDrawTurn',
+           'PartInLastHand', 'AmountToCall_rbb', 'RangeFlop', 'FlopFoldPct',
+           'RiverBrick', 'RangeTurn', 'FlopCallPct', 'AvgCardRankFlop',
+           'NetLastHand_rss', 'NumPairsTurn', 'CurrentPot_rbb',
+           'HighCardRiver', 'AvgCardRankTurn', 'FlopCheckPct',
+           'TurnCallPct', 'MinOtherStack_rbb_rs']
+baseSubsets = {'All': [2,3,5,6,7,8,10,13,14,15,17,18,19,20,22,23,24,25,26,27,29,
+                       30,31,32,33,34,35,36,37,38,40,41,42,43,44,45,47,48,51,52,
+                       53,58,59,60,61,62,63,64,65,66,67,69,70,71,74,77,78,81,82,
+                       85,86,89,90,91,92,93,95,96,98,101,103,105,108,109,110],
+               'Preflop':[],
+               'Flop':[9,11,28,50,56,57,68,97,102],
+               'Turn':[1,16,39,73,76,83,94,100,104,107],
+               'River':[0,4,12,21,49,72,75,79,80,99,106],
+               'False':[],
+               'True':[46,54,55,84,87,88]
+              }
+baseSubsets['River'] += baseSubsets['Turn'] + baseSubsets['Flop'] + baseSubsets['Preflop']
+baseSubsets['Turn'] += baseSubsets['Flop'] + baseSubsets['Preflop']
+baseSubsets['Flop'] += baseSubsets['Preflop']
+
+subsets = list(product(['Preflop','Flop','Turn','River'], [False,True]))
+            
+allColsSubsets = {'{}-{}'.format(a,b) : baseSubsets[a]+baseSubsets[str(b)]+baseSubsets['All']
+                    for a,b in subsets}
+allColsSubsets = {k: [allCols[i] for i in v]
+                        for k,v in allColsSubsets.iteritems()}
+
 for rd,fb in product(['Preflop','Flop','Turn','River'], [True,False]):
-    cur.execute("""SELECT *
-                INTO OUTFILE '{0}/{1}-{2}.csv'
+    subsetName = '-'.join([rd,str(fb)])
+    cur.execute("""SELECT {0}
+                INTO OUTFILE '{1}/{2}-{3}.csv'
                 FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
                 LINES TERMINATED BY '\n'
                 FROM features
-                WHERE Round={1} AND FacingBet={3};""".format(
+                WHERE Round="{2}" AND FacingBet={4};""".format(
+                ','.join(allColsSubsets['{}-{}'.format(rd,fb)]),
                 os.getcwd(), rd, str(fb), int(fb)
     ))
+    
+# dump columns as JSON for future use
+with open('FeatureSets.json','w') as outfile:
+    json.dump(allColsSubsets, outfile)
