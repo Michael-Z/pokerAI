@@ -13,7 +13,7 @@ import json
 #################### SET FLAGS FOR RUNNING DIFFERENT SECTIONS #################
 prepF = True
 createF = True
-quickF = False
+quickF = True
 vectorizedF = False
 loopingF = False
 boardF = False
@@ -78,6 +78,7 @@ print "Checkpoint, prep completed:", datetime.now() - startTime
 ########################## CREATE TABLES IN DATABASE ##########################
 if createF:
     datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
+                 'Amount_rp': 'decimal(10,2)',
                  'AggInPosVsMe': 'tinyint(1)','AggStack': 'decimal(10,2)',
                  'AggressorPos': 'tinyint(2)','AllAggFactor': 'decimal(8,4)',
                  'AllBet': 'smallint(5)','AllCall': 'smallint(5)',
@@ -143,7 +144,7 @@ if createF:
                  }
     
     tableCols = {
-        'quickFeatures': ['Action', 'Round', 'FacingBet',
+        'quickFeatures': ['Action', 'Amount_rp', 'Round', 'FacingBet',
               'AmountToCall_rbb', 'CurrentPot_rbb', 'NumPlayersStart',
               'NumPlayersLeft', 'BigBlind','StackToPot', 'IsSB', 'IsBB', 
               'InvestedThisGame', 'Player', 'HoleCard1', 'HoleCard2', 'ActionID'],
@@ -211,10 +212,11 @@ if createF:
 ######################## POPULATE QUICK FEATURES ##############################
 if quickF:
     cur.execute("""INSERT INTO quickFeatures
-                (Action,Round,FacingBet,AmountToCall_rbb,CurrentPot_rbb,
+                (Action,Amount_rp,Round,FacingBet,AmountToCall_rbb,CurrentPot_rbb,
                  NumPlayersStart,NumPlayersLeft,BigBlind,StackToPot,
                  IsSB,IsBB,InvestedThisGame,Player,HoleCard1,HoleCard2,ActionID)
-                SELECT a.Action,a.Round,a.CurrentBet>a.InvestedThisRound,
+                SELECT a.Action,ROUND(a.Amount / g.CurrentPot,2),
+                        a.Round,a.CurrentBet>a.InvestedThisRound,
                         ROUND((a.CurrentBet-a.InvestedThisRound) / g.BigBlind,2),
                         a.CurrentPot,g.NumPlayers,a.NumPlayersLeft,g.BigBlind,
                         ROUND(a.CurrentStack / a.CurrentPot,2), a.SeatRelDealer=1,
@@ -1393,12 +1395,13 @@ if subsetsF:
                'RiverBrick', 'RangeTurn', 'FlopCallPct', 'AvgCardRankFlop',
                'NetLastHand_rss', 'NumPairsTurn', 'CurrentPot_rbb',
                'HighCardRiver', 'AvgCardRankTurn', 'FlopCheckPct',
-               'TurnCallPct', 'MinOtherStack_rbb_rs','Player','Action']
+               'TurnCallPct', 'MinOtherStack_rbb_rs','Player','Action',
+               'Amount_rp']
     baseSubsets = {'All': [2,3,5,6,7,8,10,13,14,15,17,18,19,20,22,23,24,25,26,27,29,
                            30,31,32,33,34,35,36,37,38,40,41,42,43,44,45,47,48,51,52,
                            53,58,59,60,61,62,63,64,65,66,67,69,70,71,74,77,78,81,82,
                            85,86,89,90,91,92,93,95,96,98,101,103,105,108,109,110,
-                           111,112],
+                           111,112,113],
                    'Preflop':[],
                    'Flop':[9,11,28,50,56,57,68,97,102],
                    'Turn':[1,16,39,73,76,83,94,100,104,107],
