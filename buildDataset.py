@@ -14,19 +14,19 @@ import json
 prepF = True
 createF = True
 quickF = True
-vectorizedF = False
-loopingF = False
-boardF = False
-columnF = False
-txtToCsvF = False
-toFeaturesF = False
-newFeaturesF = False
-newTxtToCsvF = False
-toFeaturesFinalF = False
-subsetsF = False
+vectorizedF = True
+loopingF = True
+boardF = True
+columnF = True
+txtToCsvF = True
+toFeaturesF = True
+newFeaturesF = True
+newTxtToCsvF = True
+toFeaturesFinalF = True
+subsetsF = True
 
 ######################### PREP AND UTILITY FUNCTIONS ##########################
-testing = False
+testing = True
 
 # quick convert of numeric list to list of strings
 def toStrings(l):
@@ -215,7 +215,7 @@ if quickF:
                 (Action,Amount_rp,Round,FacingBet,AmountToCall_rbb,CurrentPot_rbb,
                  NumPlayersStart,NumPlayersLeft,BigBlind,StackToPot,
                  IsSB,IsBB,InvestedThisGame,Player,HoleCard1,HoleCard2,ActionID)
-                SELECT a.Action,ROUND(a.Amount / g.CurrentPot,2),
+                SELECT a.Action,ROUND(a.Amount / a.CurrentPot,2),
                         a.Round,a.CurrentBet>a.InvestedThisRound,
                         ROUND((a.CurrentBet-a.InvestedThisRound) / g.BigBlind,2),
                         a.CurrentPot,g.NumPlayers,a.NumPlayersLeft,g.BigBlind,
