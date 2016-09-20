@@ -14,5 +14,6 @@ for r,b in product(['Preflop','Flop','Turn','River'], [False,True]):
     result['Table'] = '{}-{}'.format(r,b)
     results.append(result)
     
-breakdown = pd.DataFrame(results, columns=['Table','fold','check','call','bet','raise'])
-pd.DataFrame(breakdown).fillna(0).round(3).to_csv('data/labelBreakdown.csv', index=False)
+colOrder = ['Table','fold','check','call','bet','raise']
+breakdown = pd.DataFrame(results, columns=colOrder)
+pd.DataFrame(breakdown).fillna(0).round(3).to_csv('data/labelBreakdown.csv', index=False, cols=colOrder)

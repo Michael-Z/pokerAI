@@ -30,5 +30,5 @@ cut -c2- dims.csv > dims.csv
 python lib/CSVtoMD.py data/dims.csv > data/dims.txt
 python lib/CSVtoMD.py data/labelBreakdown.csv > data/labels.txt
 
-# clean up
-#rm data/dims.csv data/labelBreakdown.csv
+# create visualizations
+Rscript lib/exploreViz.R
