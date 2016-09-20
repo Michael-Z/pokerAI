@@ -1,6 +1,5 @@
 Filename       |  NumRows   |  NumCols
 ---------------|------------|---------
-dims           |  8         |  3      
 Flop-False     |  2445083   |  87     
 Flop-True      |  1354231   |  93     
 Preflop-False  |  77289     |  78     
