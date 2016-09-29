@@ -4,7 +4,6 @@ library(lattice)
 library(reshape)
 library(ggplot2)
 library(RJSONIO)
-library(data.table)
 library(stringr)
 theme_set(theme_minimal(12))
 
@@ -32,7 +31,7 @@ featureSets <- fromJSON('../data/util/FeatureSets.json')
 amountDists <- data.frame()
 for (f in c('Preflop-True','Flop-False','Flop-True','Turn-False','Turn-True','River-False','River-True')) {
   act <- ifelse(grepl('True',f), 'raise','bet')
-  amtDF <- read.csv(gsub('filename',f,'../data/test/data_engineered/subsets/filename.csv'), nrows=500000, header=FALSE, stringsAsFactors = FALSE)
+  amtDF <- read.csv(gsub('filename',f,'../data/test/data_engineered/subsets/classifier/filename.csv'), nrows=500000, header=FALSE, stringsAsFactors = FALSE)
   names(amtDF) <- featureSets[[f]]
   amt <- amtDF[amtDF$Action==act,'Amount_rp']
   amt <- amt[amt<quantile(amt, 0.95)]
@@ -53,3 +52,11 @@ ggplot(amountDists[amountDists$Action=='bet',], aes(Amount, fill=Situation, colo
   xlab('Amount Relative to Pot Size') + 
   ggtitle('Amount Distribution for Bets by Situation')
 dev.off()
+
+timings = read.csv('data/timings.csv', stringsAsFactors = FALSE)
+timings$Task = factor(timings$Task, levels = timings$Task)
+
+ggplot(timings, aes(x=Task, y=Seconds)) + geom_bar(stat='identity') + 
+  theme(axis.text.x = element_text(angle=60, hjust=1),
+        axis.title.x=element_blank()) + 
+  ggtitle('Subtasks of Project by Computation Time')

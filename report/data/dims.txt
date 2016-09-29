@@ -1,11 +1,10 @@
-Filename             |  NumRows   |  NumCols
----------------------|------------|---------
-Flop-False           |  2445083   |  87     
-Flop-True            |  1354231   |  93     
-Preflop-False        |  77289     |  78     
-Preflop-True         |  14240503  |  84     
-Preflop-True-sample  |  0         |  0      
-River-False          |  823553    |  108    
-River-True           |  348928    |  114    
-Turn-False           |  1318557   |  97     
-Turn-True            |  626449    |  103    
+Filename       |  NumRows   |  NumCols
+---------------|------------|---------
+Preflop-False  |  77289     |  79     
+Preflop-True   |  14249257  |  85     
+Flop-False     |  2445347   |  88     
+Flop-True      |  1354565   |  94     
+Turn-False     |  1318627   |  98     
+Turn-True      |  626877    |  104    
+River-False    |  822986    |  109    
+River-True     |  349217    |  115    

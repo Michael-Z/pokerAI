@@ -1,5 +1,2 @@
-if ! [ -n "$(ls -A data)" ]
-then
-    . lib/makeTables.sh
-fi
+. lib/makeTables.sh
 . lib/genReport.sh

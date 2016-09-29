@@ -13,6 +13,8 @@ import itertools
 import random
 from uuid import uuid4
 
+print "Start time:", datetime.datetime.now()
+
 testing = True
 testSize = 3000
 
@@ -52,7 +54,7 @@ def readABSfile(filename):
         try:
             ###################### HAND INFORMATION ###########################
             # add small and big blinds
-            fn = filename[filename.find("data_raw")+8:]
+            fn = filename[filename.find("data_raw")+9:]
             bb = float(fn[:fn.find("/")])
             if bb==0.25:
                 sb = 0.1
@@ -342,7 +344,7 @@ def readFTPfile(filename):
             assert not "@" in hand and not "\x16" in hand, "corrupted data"
             ####################### HAND INFORMATION ##############################
             # add small and big blinds
-            fn = filename[filename.find("data_raw")+8:]
+            fn = filename[filename.find("data_raw")+9:]
             bb = float(fn[:fn.find("/")])
             if bb==0.25:
                 sb = 0.1
@@ -623,7 +625,7 @@ def readONGfile(filename):
         try:
             ####################### HAND INFORMATION ##############################
             # add small and big blinds
-            fn = filename[filename.find("data_raw")+8:]
+            fn = filename[filename.find("data_raw")+9:]
             bb = float(fn[:fn.find("/")])
             if bb==0.25:
                 sb = 0.1
@@ -936,7 +938,7 @@ def readPSfile(filename):
             assert not 'Hand cancelled' in hand, "cancelled hand"
             ###################### HAND INFORMATION ###########################
             # add small and big blinds
-            fn = filename[filename.find("data_raw")+8:]
+            fn = filename[filename.find("data_raw")+9:]
             bb = float(fn[:fn.find("/")])
             if bb==0.25:
                 sb = 0.1
@@ -1224,7 +1226,7 @@ def readPTYfile(filename):
                 raise ValueError
             ###################### HAND INFORMATION ###########################
             # add small and big blinds
-            fn = filename[filename.find("data_raw")+8:]
+            fn = filename[filename.find("data_raw")+9:]
             bb = float(fn[:fn.find("/")])
             if bb==0.25:
                 sb = 0.1
@@ -1530,8 +1532,8 @@ os.chdir('../test') if testing else os.chdir('../full')
 
 # restart the data folder
 if len(os.listdir('data_parsed')) > 0:
-    os.system('rm data_parsed/*')
-    os.makedir('data_parsed')
+    shutil.rmtree('data_parsed')
+    os.mkdir('data_parsed')
 os.chdir('data_parsed')
 
 # get all files, not including IPN because they're stupid and also dumb

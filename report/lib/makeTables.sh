@@ -1,7 +1,7 @@
 # get dimensions of every subset (rows, cols)
 touch data/dims.csv
 rm data/dims.csv
-for f in $( echo ../data/test/data_engineered/subsets/*.csv )
+for f in $( echo ../data/test/data_engineered/subsets/classifier/*.csv )
     do 
     fName=${f%.*}
     fName=${fName##*/}
@@ -21,14 +21,22 @@ python lib/getLabels.py
 i=0
 for s in "Filename" "Preflop" "Flop" "Turn" "River"
     do
-    perl -pi -e "s/$s/$i$s/g" dims.csv
+    perl -pi -e "s/$s/$i$s/g" data/dims.csv
     ((i+=1))
 done
-cut -c2- dims.csv > dims.csv
+sort data/dims.csv -o data/dims.csv
+cut -c2- data/dims.csv > data/dims2.csv
+mv data/dims2.csv data/dims.csv
 
 # CSV to markdown
 python lib/CSVtoMD.py data/dims.csv > data/dims.txt
 python lib/CSVtoMD.py data/labelBreakdown.csv > data/labels.txt
+
+cp dataBackup/classifierResults.csv data/classifierResults.csv
+python lib/CSVtoMD.py data/classifierResults.csv > data/classifiers.txt
+python lib/CSVtoMD.py data/regressorResults.csv > data/regressors.txt
+#python lib/CSVtoMD.py data/classifierGridSearch.csv > data/classGS.txt
+#python lib/CSVtoMD.py data/regressorGridSearch.csv > data/regressGS.txt
 
 # create visualizations
 Rscript lib/exploreViz.R

@@ -8,7 +8,7 @@ with open('../data/util/FeatureSets.json') as json_data:
 results = []
 for r,b in product(['Preflop','Flop','Turn','River'], [False,True]):
     if r=='Preflop' and not b: continue
-    test = pd.read_csv("../data/test/data_engineered/subsets/{}-{}.csv".format(r,b), nrows=500000, names=fs['{}-{}'.format(r,b)])
+    test = pd.read_csv("../data/test/data_engineered/subsets/classifier/{}-{}.csv".format(r,b), nrows=500000, names=fs['{}-{}'.format(r,b)])
     vc = test.Action.value_counts()
     result = dict(vc / vc.sum())
     result['Table'] = '{}-{}'.format(r,b)

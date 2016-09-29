@@ -23,7 +23,7 @@ toFeaturesF = False
 newFeaturesF = False
 newTxtToCsvF = False
 toFeaturesFinalF = False
-subsetsF = False
+subsetsF = True
 
 ######################### PREP AND UTILITY FUNCTIONS ##########################
 testing = True
@@ -47,7 +47,7 @@ def chunks(l, n):
 startTime = datetime.now()
 
 # get DB password from file
-with open('pwd.txt') as f:
+with open('../../util/pwd.txt') as f:
     pwd = f.read().strip()
 
 # connect to DB
@@ -73,12 +73,12 @@ if resetF:
     # create folders for text files
     for fdr in ['table','column','new','subsets']:
         if os.path.exists(fdr): shutil.rmtree(fdr)
-	os.makedir(fdr)
+	os.mkdir(fdr)
 
     print "Checkpoint, prep completed:", datetime.now() - startTime
 
 datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
-             'Amount_rp': 'decimal(10,2)',
+             'AllIn': 'tinyint(2)','Amount_rp': 'decimal(10,2)',
              'AggInPosVsMe': 'tinyint(1)','AggStack': 'decimal(10,2)',
              'AggressorPos': 'tinyint(2)','AllAggFactor': 'decimal(8,4)',
              'AllBet': 'smallint(5)','AllCall': 'smallint(5)',
@@ -86,9 +86,7 @@ datatypes = {'ActionID': 'int NOT NULL AUTO_INCREMENT','Action': 'varchar(10)',
              'AllRaise': 'smallint(5)','AmountToCall_rbb': 'decimal(10,2)',
              'AvgCardRankFlop': 'decimal(4,2)','AvgCardRankRiver': 'decimal(4,2)',
              'AvgCardRankTurn': 'decimal(4,2)','BetRiverPct': 'decimal(4,3)',
-             'BetsRaisesF': 'tinyint(2)','BetsRaisesGame': 'tinyint(2)',
-             'BetsRaisesP': 'tinyint(2)','BetsRaisesR': 'tinyint(2)',
-             'BetsRaisesT': 'tinyint(2)','BigBlind': 'decimal(4,2)',
+             'BetsRaisesGame': 'tinyint(2)','BigBlind': 'decimal(4,2)',
              'CBisCheckRaise': 'tinyint(1)','CallCBetPct': 'decimal(4,3)',
              'CallFlopBetPct': 'decimal(4,3)','CallOrRaisePFRPct': 'decimal(4,3)',
              'ContBetPct': 'decimal(4,3)','CurrentPot_rbb': 'decimal(10,2)',
@@ -147,11 +145,11 @@ tableCols = {
     'quickFeatures': ['Action', 'Amount_rp', 'Round', 'FacingBet',
           'AmountToCall_rbb', 'CurrentPot_rbb', 'NumPlayersStart',
           'NumPlayersLeft', 'BigBlind','StackToPot', 'IsSB', 'IsBB', 
-          'InvestedThisGame', 'Player', 'HoleCard1', 'HoleCard2', 'ActionID'],
+          'InvestedThisGame', 'Player', 'HoleCard1', 'HoleCard2', 'AllIn',
+          'ActionID'],
     'tableFeatures': ['NumChecksGame', 'LastToAct', 
           'LastToActStack','FinalPotLastHandTable', 'CBisCheckRaise',
-          'BetsRaisesGame','BetsRaisesP', 'BetsRaisesF', 'BetsRaisesT',
-          'BetsRaisesR','NumPairsFlop', 'NumPairsTurn', 'NumPairsRiver', 
+          'BetsRaisesGame','NumPairsFlop', 'NumPairsTurn', 'NumPairsRiver', 
           'TwoToFlushDrawFlop', 'TwoToFlushDrawTurn','ThreeToFlushDrawFlop',
           'FlushTurned', 'FlushRivered', 'HighCardFlop', 'HighCardTurn',
           'HighCardRiver', 'RangeFlop', 'RangeTurn', 'RangeRiver', 
@@ -216,14 +214,14 @@ if quickF:
     cur.execute("""INSERT INTO quickFeatures
                 (Action,Amount_rp,Round,FacingBet,AmountToCall_rbb,CurrentPot_rbb,
                  NumPlayersStart,NumPlayersLeft,BigBlind,StackToPot,
-                 IsSB,IsBB,InvestedThisGame,Player,HoleCard1,HoleCard2,ActionID)
+                 IsSB,IsBB,InvestedThisGame,Player,HoleCard1,HoleCard2,AllIn,ActionID)
                 SELECT a.Action,ROUND(a.Amount / a.CurrentPot,2),
                         a.Round,a.CurrentBet>a.InvestedThisRound,
                         ROUND((a.CurrentBet-a.InvestedThisRound) / g.BigBlind,2),
                         a.CurrentPot,g.NumPlayers,a.NumPlayersLeft,g.BigBlind,
                         ROUND(a.CurrentStack / a.CurrentPot,2), a.SeatRelDealer=1,
                         a.SeatRelDealer=2, a.StartStack - a.CurrentStack,
-                        a.Player, a.HoleCard1, a.HoleCard2, a.ActionID
+                        a.Player, a.HoleCard1, a.HoleCard2, a.AllIn, a.ActionID
                 FROM actions AS a
                 INNER JOIN games AS g
                 ON a.GameNum=g.GameNum
@@ -261,8 +259,8 @@ if vectorizedF:
         
         pokerWOB['BetOrRaise'] = pokerWOB.Action.isin(['bet','raise'])
         pokerWOB['check'] = pokerWOB.Action=='check'
-        newCols['BetsRaisesGame'] = pokerWOB.groupby('GameNum').BetOrRaise.cumsum()
-        newCols['NumChecksGame'] = pokerWOB.groupby('GameNum').check.cumsum()
+        newCols['BetsRaisesGame'] = pokerWOB.groupby('GameNum').BetOrRaise.cumsum() - pokerWOB.BetOrRaise
+        newCols['NumChecksGame'] = pokerWOB.groupby('GameNum').check.cumsum() - pokerWOB.check
         
         newCols['SeatRelDealer_rnp'] = pokerWOB.SeatRelDealer / pokerWOB.NumPlayers
         
@@ -275,25 +273,7 @@ if vectorizedF:
         newCols['ESvsAgg'] = (pd.Series(newCols['AggStack'])>=pokerWOB.CurrentStack) \
                 *pd.Series(newCols['AggStack']) + \
                 (pokerWOB.CurrentStack>=newCols['AggStack'])*pokerWOB.CurrentStack
-        
-        # total bets and raises for each round
-        # (not vectorized, but convenient to calculate here)
-        for r in ['P','F','R','T']:
-            newCols['BetsRaises{}'.format(r)] = []
-        relevantCols = ['GameNum','Round','BetOrRaise']
-        brDF = zip(*[pokerWOB[c] for c in relevantCols])
-        rounds = ['Preflop','Flop','Turn','River']
-        newBRCols = {r:[] for r in rounds}
-        counts = {r:0 for r in rounds}
-        for i,(g,r,bor) in enumerate(brDF):
-            if g!=brDF[i-1][0]:
-                counts = {r:0 for r in rounds}
-            for rd in rounds:
-                newBRCols[rd].append(counts[rd])
-                if r==rd: counts[r] += bor
-        for rd in rounds:
-            newCols['BetsRaises{}'.format(rd[0])] = newBRCols[rd]
-        
+                
         # write columns to text
         for c,v in newCols.iteritems():
             with open('{}.txt'.format(c),'ab') as f:
@@ -847,7 +827,6 @@ if columnF:
     cur.execute('SELECT Player FROM actions;')
     with open('ThreeBetPct.txt','ab') as outF:
         for i,p in enumerate(cur):
-            if i % 100000 == 0: print i
             p = p[0]
             if p in player3BetOpps:
                 threeBets.append(player3Bets[p] / player3BetOpps[p])
@@ -876,7 +855,6 @@ if columnF:
     cur.execute('SELECT Player FROM actions;')
     with open('SeeSDPct.txt','ab') as outF:
         for i,p in enumerate(cur):
-            if i % 100000 == 0: print i
             p = p[0]
             numSD = float(len(playerGameSeesSD[p][0]))
             ssPct.append(numSD / playerGameSeesSD[p][1])
@@ -1421,14 +1399,15 @@ if toFeaturesFinalF:
     print "Checkpoint, final features populated:", datetime.now()-startTime
 ################## WRITE SUBSETS TO CSV FOR FAST LOAD #########################
 if subsetsF:
-    os.chdir('subsets')
+    if not os.path.exists('subsets/classifier'): os.mkdir('subsets/classifier')
+    os.chdir('subsets/classifier')
     
     allCols = ['NumPairsRiver', 'HighCardTurn', 'TurnRaisePct', 'BigBlind',
                'RiverBetPct', 'FinalPotLastHandTable', 'NumPlayersStart', 'IsBB',
                'RiverCheckPct', 'NumFaceCardsFlop', 'RiverRaisePct', 
-               'TwoToFlushDrawFlop', 'ThreeOrMoreToStraightRiver', 'BetsRaisesF',
-               'MeanOtherStack_rbb_rs', 'RiverFoldPct', 'TurnBrick', 'BetsRaisesT',
-               'RiverCallPct', 'BetsRaisesR', 'BetsRaisesP', 'FlushTurned',
+               'TwoToFlushDrawFlop', 'ThreeOrMoreToStraightRiver',
+               'MeanOtherStack_rbb_rs', 'RiverFoldPct', 'TurnBrick',
+               'RiverCallPct', 'FlushTurned',
                'SeeSDPct', 'TurnFoldPct', 'LastToActStack', 'TurnCheckPct',
                'PreflopAggFactor', 'PreflopCheckPct', 'TwoToStraightDrawFlop',
                'CallFlopBetPct', 'FlopBetPct', 'ThreeBetPct', 'MaxOtherStack_rbb_rs',
@@ -1452,13 +1431,13 @@ if subsetsF:
                'RiverBrick', 'RangeTurn', 'FlopCallPct', 'AvgCardRankFlop',
                'NetLastHand_rss', 'NumPairsTurn', 'CurrentPot_rbb',
                'HighCardRiver', 'AvgCardRankTurn', 'FlopCheckPct',
-               'TurnCallPct', 'MinOtherStack_rbb_rs','Player','Action',
+               'TurnCallPct', 'MinOtherStack_rbb_rs','AllIn','Player','Action',
                'Amount_rp']
     baseSubsets = {'All': [2,3,5,6,7,8,10,13,14,15,17,18,19,20,22,23,24,25,26,27,29,
                            30,31,32,33,34,35,36,37,38,40,41,42,43,44,45,47,48,51,52,
                            53,58,59,60,61,62,63,64,65,66,67,69,70,71,74,77,78,81,82,
                            85,86,89,90,91,92,93,95,96,98,101,103,105,108,109,110,
-                           111,112,113],
+                           111,112,113,114],
                    'Preflop':[],
                    'Flop':[9,11,28,50,56,57,68,97,102],
                    'Turn':[1,16,39,73,76,83,94,100,104,107],
@@ -1487,10 +1466,11 @@ if subsetsF:
                     WHERE Round="{1}" AND FacingBet={3}
                     ;""".format(
                     ','.join(allColsSubsets['{}-{}'.format(rd,fb)]),
-                    rd, str(fb), int(fb)
+                    rd,str(fb),int(fb)
         ))
         
     # dump columns as JSON for future use
+    os.chdir('../../../../util')
     with open('FeatureSets.json','w') as outfile:
         json.dump(allColsSubsets, outfile)
     print "END! subset CSVs created:", datetime.now()-startTime
