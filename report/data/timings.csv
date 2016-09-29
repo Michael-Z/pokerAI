@@ -1,0 +1,13 @@
+Task,Seconds
+fileReaders.getData,1114
+fileReaders.bash,831
+fileReaders.SQL,275
+buildDataset.quickFeatures,730
+buildDataset.vectorizedFeatures,1860
+buildDataset.loopingFeatures,10473
+buildDataset.boardFeatures,2531
+buildDataset.columnFeatures,5993
+buildDataset.featuresCombined,7737
+buildDataset.subsetCSVsCreated,1472
+classifiers.Selection,3329
+regressors.Selection,193

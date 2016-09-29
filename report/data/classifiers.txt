@@ -1,0 +1,8 @@
+Classifier                  |  TrainF1       |  ValidF1       |  AvgPredictTime
+----------------------------|----------------|----------------|----------------
+DecisionTreeClassifier      |  1             |  0.8249883836  |  0.0673522     
+AdaBoostClassifier          |  0.873458249   |  0.870990811   |  1.0612977     
+GradientBoostingClassifier  |  0.8770246104  |  0.8754100096  |  1.0439908     
+RandomForestClassifier      |  0.9955975011  |  0.8562853894  |  0.3591011     
+LogisticRegression          |  0.8561921853  |  0.8567712667  |  0.0611803     
+GaussianNB                  |  0.864348044   |  0.8642462906  |  0.62752       

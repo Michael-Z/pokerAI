@@ -1,0 +1,2 @@
+Classifier,TrainF1,ValidF1,AvgPredictTime
+DecisionTreeClassifier,1.0,0.620233491227,0.1666944

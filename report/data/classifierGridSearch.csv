@@ -1,0 +1,8 @@
+Dataset,penalty,C
+Preflop-True,l1,100
+Flop-False,l1,10
+Flop-True,l1,100
+Turn-False,l1,10
+Turn-True,l1,10
+River-False,l1,1
+River-True,l1,1
