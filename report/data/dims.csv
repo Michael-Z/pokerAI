@@ -1,0 +1,9 @@
+Filename,NumRows,NumCols
+Preflop-False,77289,79
+Preflop-True,14249257,85
+Flop-False,2445347,88
+Flop-True,1354565,94
+Turn-False,1318627,98
+Turn-True,626877,104
+River-False,822986,109
+River-True,349217,115

@@ -1,0 +1,7 @@
+Overall F1 is River-False-0.418150488225
+Turn-False-0.439919664288
+Preflop-True-0.864755178955
+Flop-False-0.680292306807
+River-True-0.664710696591
+Flop-True-0.67804377267
+Turn-True-0.70300695499, list of F1s is 0.66959852439

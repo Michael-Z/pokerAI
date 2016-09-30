@@ -1,0 +1,8 @@
+Dataset,max_features,max_depth
+Preflop-True,10,5
+Flop-False,10,5
+Flop-True,10,5
+Turn-False,10,5
+Turn-True,30,5
+River-False,10,5
+River-True,10,5
