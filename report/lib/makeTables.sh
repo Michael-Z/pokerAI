@@ -32,11 +32,10 @@ mv data/dims2.csv data/dims.csv
 python lib/CSVtoMD.py data/dims.csv > data/dims.txt
 python lib/CSVtoMD.py data/labelBreakdown.csv > data/labels.txt
 
-cp dataBackup/classifierResults.csv data/classifierResults.csv
 python lib/CSVtoMD.py data/classifierResults.csv > data/classifiers.txt
 python lib/CSVtoMD.py data/regressorResults.csv > data/regressors.txt
-#python lib/CSVtoMD.py data/classifierGridSearch.csv > data/classGS.txt
-#python lib/CSVtoMD.py data/regressorGridSearch.csv > data/regressGS.txt
+python lib/CSVtoMD.py data/classifierGridSearch.csv > data/classGS.txt
+python lib/CSVtoMD.py data/regressorGridSearch.csv > data/regressGS.txt
 
 # create visualizations
 Rscript lib/exploreViz.R

@@ -6,6 +6,7 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import mean_absolute_error
 import numpy as np
 from datetime import datetime
+from itertools import product
 
 # models to try
 from sklearn.tree import DecisionTreeRegressor
@@ -38,7 +39,7 @@ actions = ['None','deadblind','blind','fold','check','call','bet','raise']
 if not os.listdir('data_engineered/subsets/regressor'):
     os.chdir('data_engineered/subsets/classifier')
     for f in os.listdir(os.getcwd()):
-        if f[-4:]=='True':
+        if f[-8:-4]=='True':
             command = r"""
             awk -F ',' 'BEGIN {{OFS=","}} {{ if ($(NF-1) == "\"raise\"" && $(NF-3) == 0) print }}' {0} > ../regressor/{0}
             """.format(f).strip()
@@ -49,13 +50,14 @@ if not os.listdir('data_engineered/subsets/regressor'):
         os.system(command)
         
     os.chdir('../../..')
-    
+
 os.chdir('data_engineered/subsets/regressor')
 
-subset = 'River-False'
+subset = 'Preflop-True'
 poker = pd.read_csv('{}.csv'.format(subset), 
                     header=None, names=fs[subset],
                     nrows=500000)
+
     
 # prep for classifiers
 def prepPoker(poker, isFB):
@@ -146,13 +148,13 @@ for rgr in [DecisionTreeRegressor(),
    
 '''
 CHOICE: RANDOM FOREST
-'''
+
 
 # tune [choice] for every dataset
 gsTable = []
 scores = {}
 
-for df in ['Preflop-True','Flop-False','Flop-True','Turn-False','Turn-True',
+for df in ['Flop-False','Flop-True','Turn-False','Turn-True',
            'River-False','River-True']:
                
     isFB = df[-4:]=='True'
@@ -165,19 +167,39 @@ for df in ['Preflop-True','Flop-False','Flop-True','Turn-False','Turn-True',
                         
     X_train,X_test,y_train,y_test = train_test_split(poker, labels, test_size=0.3)
                
-    rf = RandomForestRegressor()
+    rf = RandomForestRegressor(n_estimators=50, n_jobs=-1)
     
     # grid search
-    parameters = {'n_estimators':[10,20,40,80,200],
-                  'bootstrap':[True,False],
-                  'max_features':[30,50,None]
-                 }
-    rgr = GridSearchCV(rf, parameters, scoring='mean_absolute_error')
-    rgr.fit(X_train, y_train)
-    params = rgr.best_params_
-    rgrBest = rgr.best_estimator_
+    gsResults = []
+    parameters = {
+                  'max_features':[10,30,None],
+        		  'max_depth':[5,10,20,40,60]
+                  }
+    for f,d in product(parameters['max_features'], parameters['max_depth']):
+        cvScores = []
+        for i in xrange(3):            
+            rf = RandomForestRegressor(n_estimators=50, n_jobs=-1, verbose=9,
+                                        max_features=f, max_depth=d)
+            X_subtrain,X_valid,y_subtrain,y_valid = train_test_split(X_train, y_train, test_size=0.3)        
+            rf.fit(X_subtrain, y_subtrain)
+            cvScores.append(mean_absolute_error(y_valid, rf.predict(X_valid)))
+        result = {'max_features':f, 'max_depth':d, 'score':float(sum(cvScores)) / len(cvScores)}
+        gsResults.append(result)
+                
+        print """
+        \n\n\n\n\n\n\n
+        Completed randomforest with f={} and d={}, got {}
+        """.format(f,d,result['score'])
+        
+    params = sorted(gsResults, key = lambda x: x['score'])[-1]
+    params.pop('score')
+    params['n_estimators'] = 200
+    params['n_jobs'] = -1
+    
+    rgrBest = RandomForestRegressor(**params)
     
     # fit and predict on testing
+    rgrBest.fit(X_train, y_train)
     finalPreds = rgrBest.predict(X_test)
     finalScore = mean_absolute_error(y_test, finalPreds)
     
@@ -188,9 +210,16 @@ for df in ['Preflop-True','Flop-False','Flop-True','Turn-False','Turn-True',
     
     print "Finished {} at {}".format(df, datetime.now())
     
-pd.DataFrame(gsTable).to_csv('../../../../report/data/regressorGridSearch.csv',index=False,
+pd.DataFrame(gsTable).to_csv('../../../../../report/data/regressorGridSearch.csv',index=False,
                             columns=['Dataset']+parameters.keys())
 
-print "Individual MAE scores:\n", \
-        '\n'.join('-'.join([k,v]) for k,v in scores.iteritems())
-print "Average MAE score:", np.mean(scores.values())
+allMAE = '\n'.join('{}-{}'.format(k,v) for k,v in scores.iteritems())
+overallMAE = np.mean(scores.values())
+
+print "Individual MAE scores:\n", allMAE
+        
+print "Average MAE score:", overallMAE
+
+with open('../../../../../report/data/regressorMAE.txt','w') as f:
+    f.write('Overall MAE is {}, list of MAEs is {}'.format(allMAE, overallMAE))
+'''

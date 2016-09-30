@@ -11,3 +11,5 @@ buildDataset.featuresCombined,7737
 buildDataset.subsetCSVsCreated,1472
 classifiers.Selection,3329
 regressors.Selection,193
+classifiers.GridSearch,15932
+regressors.GridSearch,9165

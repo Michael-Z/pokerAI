@@ -6,6 +6,7 @@ from sklearn.grid_search import GridSearchCV
 from sklearn.metrics import f1_score, confusion_matrix
 import numpy as np
 from datetime import datetime
+from itertools import product
 
 # models to try
 from sklearn.tree import DecisionTreeClassifier
@@ -17,10 +18,12 @@ from sklearn.naive_bayes import GaussianNB
 
 print "Start time:", datetime.now()
 
+"""
 # start CSV for results
 with open('../report/data/classifierResults.csv','w') as f:
     header = ['Classifier','TrainF1','ValidF1','AvgPredictTime']
     f.write(','.join(header))
+"""
 
 # load data
 testing = True
@@ -32,7 +35,7 @@ with open('../util/FeatureSets.json') as json_data:
 actions = ['None','deadblind','blind','fold','check','call','bet','raise']
 
 # prep for classifiers
-def prepPoker(poker, rd, isFB):
+def prepPoker(poker, isFB):
     # string feature to dummy
     poker = poker.join(pd.get_dummies(poker.LastAction))
     poker.drop('LastAction', axis=1, inplace=True)
@@ -65,7 +68,7 @@ poker = pd.read_csv('data_engineered/subsets/classifier/{}.csv'.format(subset),
                     nrows=500000)
 
 isFB = subset[-4:]=='True'
-poker = prepPoker(poker, subset[:subset.find('-')], isFB)
+poker = prepPoker(poker, isFB)
 
 # separate targets and features
 labels = poker.pop('Action')
@@ -121,7 +124,7 @@ for clf in [DecisionTreeClassifier(),
         f.write('\n' + newRow)
         
     print "Finished algorithm {} at {}".format(clfName, datetime.now())
-    
+
 '''
 CHOICE: RANDOM FOREST
 '''
@@ -131,10 +134,13 @@ gsTable = []
 fullConfusion = np.zeros((5,5))
 indF1s = {}
 
-for df in ['Preflop-True','Flop-False','Flop-True','Turn-False','Turn-True',
+for df in ['Flop-False','Flop-True','Turn-False','Turn-True',
            'River-False','River-True']:
                
+    print '\n\n\n\n\n\n NEW DATA FRAME {}'.format(df)
+               
     isFB = df[-4:]=='True'
+    rd = df[:df.find('-')]
     
     poker = pd.read_csv('data_engineered/subsets/classifier/{}.csv'.format(df), 
                         header=None, names=fs[df],
@@ -143,18 +149,40 @@ for df in ['Preflop-True','Flop-False','Flop-True','Turn-False','Turn-True',
     labels = poker.pop('Action')
                         
     X_train,X_test,y_train,y_test = train_test_split(poker, labels, test_size=0.3)
-               
-    lr = LogisticRegression()
     
     # grid search
-    parameters = {'n_estimators':[10,20,40,80,200],
-                  'bootstrap':[True,False],
-                  'max_features':[30,50,None]
+    gsResults = []
+    parameters = {
+                  'max_features':[10,30,None],
+        		  'max_depth':[5,10,20,40,60]
                   }
-    clf = GridSearchCV(lr, parameters, scoring='f1_weighted')
-    clf.fit(X_train, y_train)
-    params = clf.best_params_
-    clfBest = clf.best_estimator_
+    for f,d in product(parameters['max_features'], parameters['max_depth']):
+        cvScores = []
+        for i in xrange(3):            
+            rf = RandomForestClassifier(n_estimators=50, n_jobs=-1, verbose=9,
+                                        max_features=f, max_depth=d)
+            X_subtrain,X_valid,y_subtrain,y_valid = train_test_split(X_train, y_train, test_size=0.3)        
+            rf.fit(X_subtrain, y_subtrain)
+            if isFB:
+                cvScores.append(f1_score(y_valid, rf.predict(X_valid), average='weighted'))
+            else:
+                cvScores.append(f1_score(y_valid, rf.predict(X_valid), pos_label='bet'))
+        result = {'max_features':f, 'max_depth':d, 'score':float(sum(cvScores)) / len(cvScores)}
+        gsResults.append(result)
+            
+        print """
+        \n\n\n\n\n\n\n
+        Completed randomforest with f={} and d={}, got {}
+        """.format(f,d,result['score'])
+        
+    params = sorted(gsResults, key = lambda x: x['score'])[-1]
+    params.pop('score')
+    
+    params['n_estimators'] = 200
+    params['n_jobs'] = -1
+    params['verbose'] = 9
+    clfBest = RandomForestClassifier(**params)
+    clfBest.fit(X_train, y_train)
     
     # fit and predict on testing
     finalPreds = clfBest.predict(X_test)
@@ -173,7 +201,9 @@ for df in ['Preflop-True','Flop-False','Flop-True','Turn-False','Turn-True',
     indF1s[df] = f1
     
     print "Finished {} at {}".format(df, datetime.now())
-    
+
+for row in gsTable:
+    if row['max_features'] is None: row['max_features'] = 'None'
 pd.DataFrame(gsTable).to_csv('../../report/data/classifierGridSearch.csv',index=False,
                             columns=['Dataset']+parameters.keys())
                             
@@ -198,6 +228,11 @@ def F1fromConfusion(confusion):
         
     return np.dot(allF1scores, allProportions)
 
-print "Individual F1 scores are:\n", \
-        '\n'.join('{}-{}'.format(k,v) for k,v in indF1s.iteritems())
-print "\nFinal F1 score is:", F1fromConfusion(fullConfusion)
+allF1 = '\n'.join('{}-{}'.format(k,v) for k,v in indF1s.iteritems())
+overallF1 = F1fromConfusion(fullConfusion)
+
+print "Individual F1 scores are:\n", allF1
+print "\nFinal F1 score is:", overallF1
+
+with open('../../report/data/classifierF1scores.txt','w') as f:
+    f.write('Overall F1 is {}, list of F1s is {}'.format(allF1, overallF1))

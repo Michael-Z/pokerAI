@@ -56,7 +56,9 @@ dev.off()
 timings = read.csv('data/timings.csv', stringsAsFactors = FALSE)
 timings$Task = factor(timings$Task, levels = timings$Task)
 
+png('data/timings.png', width=720)
 ggplot(timings, aes(x=Task, y=Seconds)) + geom_bar(stat='identity') + 
   theme(axis.text.x = element_text(angle=60, hjust=1),
         axis.title.x=element_blank()) + 
   ggtitle('Subtasks of Project by Computation Time')
+dev.off()

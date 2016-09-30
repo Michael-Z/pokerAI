@@ -1,9 +1,9 @@
-C      |  Dataset       |  penalty
--------|----------------|---------
-100.0  |  Preflop-True  |  l2     
-0.1    |  Flop-False    |  l1     
-1.0    |  Flop-True     |  l1     
-10.0   |  Turn-False    |  l1     
-100.0  |  Turn-True     |  l1     
-1.0    |  River-False   |  l1     
-1.0    |  River-True    |  l1     
+Dataset       |  max_features  |  max_depth
+--------------|----------------|-----------
+Preflop-True  |  None          |  40       
+Flop-False    |  None          |  10       
+Flop-True     |  None          |  60       
+Turn-False    |  None          |  40       
+Turn-True     |  None          |  20       
+River-False   |  None          |  40       
+River-True    |  None          |  40       
