@@ -14,3 +14,5 @@ Once the data is collected, `report/lib/runAll.sh` will run `classifiers.py`, wh
 The `tools` directory is irrelevant to this project, as these are scripts that will be used to build a reinforcement learner later on, which is beyond the scope of this project.
 
 I would not recommend that this project be run by a reviewer, as the feature engineering alone can take up to a full 24 hour day.
+
+The PDF report is in `docs/CapstoneReport.pdf`.
